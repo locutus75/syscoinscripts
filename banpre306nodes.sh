@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#thanks to jg@slack
+
 # get the info of all peers
 peerinfo=$(./syscoin-cli getpeerinfo)
 # count the number of peers
