@@ -31,7 +31,7 @@ do
   then
     syscli setban $ip add 604800
 	date
-    echo $mainver"."$subver"."$subsubver"? BANNED! Bye bye" $ip"! See you in a week!"
+ 	echo $mainver"."$subver"."$subsubver"? BANNED! Bye bye" $ip"! See you in a week!"
 	echo
   fi
 
