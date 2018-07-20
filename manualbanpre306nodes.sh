@@ -29,7 +29,9 @@ do
   if [ $mainver -eq 3 ] && [ $subver -eq 0 ] && [ $subsubver -lt 6 ]
   then
     ./syscoin-cli setban $ip add 604800
+    date
     echo $mainver"."$subver"."$subsubver"? BANNED! Bye bye" $ip"! See you in a week!"
+    echo  
   fi
 
   # last node in peer list is the unlucky node
