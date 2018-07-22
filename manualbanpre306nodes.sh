@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#manualbanpre306nodes.sh version 0.2
+#manualbanpre306nodes.sh version 0.2.1
 #thanks to jg@slack
 
 # get the info of all peers
