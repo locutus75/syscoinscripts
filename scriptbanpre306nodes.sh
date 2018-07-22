@@ -37,3 +37,5 @@ do
 
   let counter+=1
 done
+# disconnect the unlucky node to lure in a deviant node
+syscli disconnectnode $unluckyip
