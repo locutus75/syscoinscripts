@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#manualbanpre306nodes.sh version 0.2.1
+#manualbanpre306nodes.sh version 0.2.2
 #thanks to jg@slack
 
 # get the info of all peers
@@ -39,5 +39,3 @@ do
   unluckyip=$ip":8369"
   let counter+=1
 done
-# disconnect the unlucky node to lure in a deviant node
-~/syscoin/src/syscoin-cli disconnectnode $unluckyip
