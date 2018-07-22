@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#scriptbanpre306nodes.sh version 0.2.1
+#scriptbanpre306nodes.sh version 0.2.2
 #thanks to jg@slack
 
 function syscli() { sudo su -c "syscoin-cli $*" syscoin; }
@@ -38,5 +38,3 @@ do
 
   let counter+=1
 done
-# disconnect the unlucky node to lure in a deviant node
-syscli disconnectnode $unluckyip
