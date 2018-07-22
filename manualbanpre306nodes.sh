@@ -3,7 +3,7 @@
 #thanks to jg@slack
 
 # get the info of all peers
-peerinfo=$(./syscoin-cli getpeerinfo)
+peerinfo=$(~/syscoin/src/syscoin-cli getpeerinfo)
 # count the number of peers
 peercount=$(echo "$peerinfo" | grep "Core" | awk '{ count++ } END { print count }')
 
@@ -28,7 +28,7 @@ do
   # if the version is lower than 3.0.6 then ban the node for one week (in seconds)
   if [ $mainver -eq 3 ] && [ $subver -eq 0 ] && [ $subsubver -lt 6 ]
   then
-    ./syscoin-cli setban $ip add 604800
+    ~/syscoin/src/syscoin-cli setban $ip add 604800
     date
     echo $mainver"."$subver"."$subsubver"? BANNED! Bye bye" $ip"! See you in a week!"
     echo  
@@ -39,4 +39,4 @@ do
   let counter+=1
 done
 # disconnect the unlucky node to lure in a deviant node
-./syscoin-cli disconnectnode $unluckyip
+~/syscoin/src/syscoin-cli disconnectnode $unluckyip
