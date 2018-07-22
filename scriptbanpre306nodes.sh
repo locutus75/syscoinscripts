@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#scriptbanpre306nodes.sh version 0.2
+#scriptbanpre306nodes.sh version 0.2.1
 #thanks to jg@slack
 
 function syscli() { sudo su -c "syscoin-cli $*" syscoin; }
