@@ -30,4 +30,6 @@ sleep 5
 
 echo "Starting Syscoincore"
 ~/syscoin/src/syscoind
-echo "Done. Goodnight."
+echo "Done."
+echo "Tipping? alias: donations or address SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG"
+echo "Thanks!"
