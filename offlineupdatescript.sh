@@ -88,9 +88,9 @@ echo -e "${CYAN}Starting Syscoincore${NC}"
 ~/syscoin/src/syscoind
 sleep 15
 
-echo -e "${RED}Running version is now:"
+echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
 ./syscoin/src/syscoin-cli getinfo | grep \"version
-
+echo
 echo -e "${GREEN}Done.${NC}"
 echo -e "${CYAN}Tipping? alias: ${ORANGE}donations${CYAN} or use address ${ORANGE}SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG${NC}"
 echo -e "${PURPLE}Thanks!${NC}"
