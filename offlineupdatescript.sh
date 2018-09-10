@@ -9,7 +9,6 @@ PURPLE='\033[1;35m'
 CYAN='\033[1;36m'
 NC='\033[0m' # No Color
 
-
 echo -e "${PURPLE}Updating Syscoincore${NC}"
 sleep 1
 echo -e "${CYAN}Creating temp directory${NC}"
@@ -81,7 +80,13 @@ mv ~/temp/syscoin ~/syscoin
 sleep 2
 
 echo -e "${CYAN}Removing old debug.log${NC}"
-rm ~/.syscoincore/debug.log
+if [ -e "/home/$USER/.syscoincore/debug.log" ]
+then
+        echo -e " ${GREEN}debug.log found, removing${NC}"
+        rm ~/.syscoincore/debug.log
+else
+        echo -e " ${ORANGE}no debug.log found, skipping${NC}"
+fi
 sleep 2
 
 echo -e "${CYAN}Starting Syscoincore${NC}"
