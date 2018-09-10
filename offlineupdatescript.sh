@@ -11,6 +11,18 @@ NC='\033[0m' # No Color
 
 echo -e "${PURPLE}Updating Syscoincore${NC}"
 sleep 1
+
+cd $home
+
+if [ -e "/home/$USER/offlineupdatescript.sh" ]
+then
+	echo -e " ${GREEN}Found old offlineupdatescript.sh, removing${NC}"
+        rm ~/offlineupdatescript.sh
+else
+        echo -e " ${ORANGE}no offlineupdatescript.sh found, skipping${NC}"
+fi
+sleep 2
+
 echo -e "${CYAN}Creating temp directory${NC}"
 sleep 2
 if [ -d "/home/$USER/temp" ]
