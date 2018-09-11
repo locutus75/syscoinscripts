@@ -1,0 +1,74 @@
+#!/bin/bash
+clear
+date_today=$(date +%F)
+GREEN='\033[1;32m'
+RED='\033[1;31m'
+ORANGE='\033[1;33m'
+BLUE='\033[1;34m'
+PURPLE='\033[1;35m'
+CYAN='\033[1;36m'
+NC='\033[0m' # No Color
+
+echo -e "${PURPLE}Restarting Syscoincore and force reindex${NC}"
+echo -e "${PURPLE}This procedure may take around 30 minutes${NC}"
+echo -e "${PURPLE}Your MN will probably get a Sentinel_Ping_Expired but that is normal, it wil be ENABLED again within the hour${NC}"
+
+pause(){
+  echo ""
+  read -n1 -rsp $'Press any key to continue or Ctrl+C to exit...\n'
+}
+
+echo -e "${CYAN}Shutting down Syscoincore${NC}"
+cd $home
+~/syscoin/src/syscoin-cli stop
+sleep 10
+
+echo -e "${CYAN}Removing old debug.log${NC}"
+if [ -e "/home/$USER/.syscoincore/debug.log" ]
+then
+        echo -e " ${GREEN}debug.log found, removing${NC}"
+        rm ~/.syscoincore/debug.log
+else
+        echo -e " ${ORANGE}no debug.log found, skipping${NC}"
+fi
+sleep 2
+
+echo -e "${CYAN}Removing previous peers.dat${NC}"
+if [ -e "/home/$USER/.syscoincore/peers.dat" ]
+then
+        echo -e " ${GREEN}peers.dat found, removing${NC}"
+        rm ~/.syscoincore/peers.dat
+else
+        echo -e " ${ORANGE}no peers.dat found, skipping${NC}"
+fi
+sleep 1
+
+echo -e "${CYAN}Removing previous Blocks folder${NC}"
+if [ -d "/home/$USER/.syscoincore/blocks" ]
+then
+        echo -e " ${GREEN}Blocks folder found, removing${NC}"
+        rm -rf ~/.syscoincore/blocks
+else
+        echo -e " ${ORANGE}no Blocks folder found, skipping${NC}"
+fi
+sleep 1
+
+echo -e "${CYAN}Removing previous Chainstate folder${NC}"
+if [ -d "/home/$USER/.syscoincore/chainstate" ]
+then
+        echo -e " ${GREEN}Chainstate found, removing${NC}"
+        rm -rf ~/.syscoincore/chainstate
+else
+        echo -e " ${ORANGE}no Chainstate folder found, skipping${NC}"
+fi
+sleep 1
+
+echo -e "${CYAN}Starting Syscoincore with -reindex parameter${NC}"
+~/syscoin/src/syscoind -reindex
+sleep 15
+
+echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
+./syscoin/src/syscoin-cli getinfo | grep \"version
+echo -e "${GREEN}Done.${NC}"
+echo -e "${CYAN}Liked it? Syscoin Tippingjar alias: ${ORANGE}donations${CYAN} or use address ${ORANGE}SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG${NC}"
+echo -e "${PURPLE}Thanks!${NC}"
