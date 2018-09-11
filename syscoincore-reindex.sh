@@ -22,7 +22,7 @@ fi
 if [ "$DO_CONTINUE" = "Y" ]
  then
 	if [ -d "/home/$USER/syscoin/src" ]
-		then
+	then
 			echo -e "${CYAN}Manual Installation detected, shutting down Syscoincore${NC}"
 			cd $home
 			~/syscoin/src/syscoin-cli stop
@@ -77,7 +77,7 @@ if [ "$DO_CONTINUE" = "Y" ]
 			echo -e "${GREEN}Done.${NC}"
 			echo -e "${CYAN}Liked it? Syscoin Tippingjar alias: ${ORANGE}donations${CYAN} or use address ${ORANGE}SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG${NC}"
 			echo -e "${PURPLE}Thanks!${NC}"
-		else
+	else
 			echo -e "${CYAN}Scripted Installation detected, shutting down Syscoincore${NC}"
 			cd $home
 			sudo service syscoind stop
