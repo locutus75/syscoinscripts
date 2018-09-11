@@ -19,8 +19,8 @@ if [ "$CONTINUE" = "" ] || [ "$CONTINUE" = "y" ] || [ "$CONTINUE" = "Y" ]; then
         DO_CONTINUE="Y";
 fi
 
-if [ "$DO_CONTINUE" = "Y" ]; then
-
+if [ "$DO_CONTINUE" = "Y" ]
+ then
 	if [ -d "/home/$USER/syscoin/src" ]
 		then
 			echo -e "${CYAN}Manual Installation detected, shutting down Syscoincore${NC}"
