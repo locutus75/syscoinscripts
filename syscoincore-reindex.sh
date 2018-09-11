@@ -23,6 +23,7 @@ if [ "$DO_CONTINUE" = "Y" ]
  then
 	if [ -d "/home/$USER/syscoin/src" ]
 	then
+			echo
 			echo -e "${CYAN}Manual Installation detected, shutting down Syscoincore${NC}"
 			cd $home
 			~/syscoin/src/syscoin-cli stop
@@ -72,8 +73,6 @@ if [ "$DO_CONTINUE" = "Y" ]
 			~/syscoin/src/syscoind -reindex
 			sleep 15
 
-			echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
-			./syscoin/src/syscoin-cli getinfo | grep \"version
 			echo -e "${GREEN}Done.${NC}"
 			echo -e "${CYAN}Liked it? Syscoin Tippingjar alias: ${ORANGE}donations${CYAN} or use address ${ORANGE}SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG${NC}"
 			echo -e "${PURPLE}Thanks!${NC}"
@@ -127,8 +126,6 @@ if [ "$DO_CONTINUE" = "Y" ]
 			sudo service syscoind start
 			sleep 15
 
-			echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
-			syscli getinfo | grep \"version
 			echo -e "${GREEN}Done.${NC}"
 			echo -e "${CYAN}Liked it? Syscoin Tippingjar alias: ${ORANGE}donations${CYAN} or use address ${ORANGE}SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG${NC}"
 			echo -e "${PURPLE}Thanks!${NC}"
