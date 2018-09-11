@@ -21,7 +21,9 @@ fi
 
 if [ "$DO_CONTINUE" = "Y" ]; then
 
-			echo -e "${CYAN}Shutting down Syscoincore${NC}"
+	if [ -d "/home/$USER/syscoin/src" ]
+		
+			echo -e "${CYAN}Manual Installation detected, shutting down Syscoincore${NC}"
 			cd $home
 			~/syscoin/src/syscoin-cli stop
 			sleep 10
@@ -75,6 +77,63 @@ if [ "$DO_CONTINUE" = "Y" ]; then
 			echo -e "${GREEN}Done.${NC}"
 			echo -e "${CYAN}Liked it? Syscoin Tippingjar alias: ${ORANGE}donations${CYAN} or use address ${ORANGE}SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG${NC}"
 			echo -e "${PURPLE}Thanks!${NC}"
+	else
+			echo -e "${CYAN}Scripted Installation detected, shutting down Syscoincore${NC}"
+			cd $home
+			sudo service syscoind stop
+			sleep 10
+
+			echo -e "${CYAN}Removing old debug.log${NC}"
+			if [ -e "/home/syscoin/.syscoincore/debug.log" ]
+			then
+							echo -e " ${GREEN}debug.log found, removing${NC}"
+							sudo rm /home/syscoin/.syscoincore/debug.log
+			else
+							echo -e " ${ORANGE}no debug.log found, skipping${NC}"
+			fi
+			sleep 2
+
+			echo -e "${CYAN}Removing previous peers.dat${NC}"
+			if [ -e "/home/syscoin/.syscoincore/peers.dat" ]
+			then
+							echo -e " ${GREEN}peers.dat found, removing${NC}"
+							sudo rm /home/syscoin/.syscoincore/peers.dat
+			else
+							echo -e " ${ORANGE}no peers.dat found, skipping${NC}"
+			fi
+			sleep 1
+
+			echo -e "${CYAN}Removing previous Blocks folder${NC}"
+			if [ -d "/home/syscoin/.syscoincore/blocks" ]
+			then
+							echo -e " ${GREEN}Blocks folder found, removing${NC}"
+							sudo rm -rf /home/syscoin/.syscoincore/blocks
+			else
+							echo -e " ${ORANGE}no Blocks folder found, skipping${NC}"
+			fi
+			sleep 1
+
+			echo -e "${CYAN}Removing previous Chainstate folder${NC}"
+			if [ -d "/home/syscoin/.syscoincore/chainstate" ]
+			then
+							echo -e " ${GREEN}Chainstate found, removing${NC}"
+							sudo rm -rf /home/syscoin/.syscoincore/chainstate
+			else
+							echo -e " ${ORANGE}no Chainstate folder found, skipping${NC}"
+			fi
+			sleep 1
+
+			echo -e "${CYAN}Starting Syscoincore${NC}"
+			sudo service syscoind start
+			sleep 15
+
+			echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
+			syscli getinfo | grep \"version
+			echo -e "${GREEN}Done.${NC}"
+			echo -e "${CYAN}Liked it? Syscoin Tippingjar alias: ${ORANGE}donations${CYAN} or use address ${ORANGE}SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG${NC}"
+			echo -e "${PURPLE}Thanks!${NC}"
+	
+	fi
 else
       echo -e "${RED}Aborted!${NC}"
 fi
