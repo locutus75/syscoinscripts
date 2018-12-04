@@ -91,48 +91,18 @@ sleep 2
 mv ~/temp/syscoin ~/syscoin
 sleep 2
 
-echo -e "${CYAN}Removing old debug.log${NC}"
-if [ -e "/home/$USER/.syscoincore/testnet3/debug.log" ]
+echo -e "${CYAN}Removing Testnet3 Folder${NC}"
+if [ -d "/home/$USER/.syscoincore/testnet3" ]
 then
-        echo -e " ${GREEN}debug.log found, removing${NC}"
-        rm ~/.syscoincore/testnet3/debug.log
-else
-        echo -e " ${ORANGE}no debug.log found, skipping${NC}"
-fi
-sleep 2
-
-echo -e "${CYAN}Removing previous peers.dat${NC}"
-if [ -e "/home/$USER/.syscoincore/testnet3/peers.dat" ]
-then
-        echo -e " ${GREEN}peers.dat found, removing${NC}"
-        rm ~/.syscoincore/testnet3/peers.dat
-else
-        echo -e " ${ORANGE}no peers.dat found, skipping${NC}"
-fi
-sleep 1
-
-echo -e "${CYAN}Removing previous Blocks folder${NC}"
-if [ -d "/home/$USER/.syscoincore/testnet3/blocks" ]
-then
-        echo -e " ${GREEN}Blocks folder found, removing${NC}"
-        rm -rf ~/.syscoincore/testnet3/blocks
+        echo -e " ${GREEN}Testnet3 folder found, removing${NC}"
+        rm -rf ~/.syscoincore/testnet3
 else
         echo -e " ${ORANGE}no Blocks folder found, skipping${NC}"
 fi
-sleep 1
+sleep 2
 
-echo -e "${CYAN}Removing previous Chainstate folder${NC}"
-if [ -d "/home/$USER/.syscoincore/testnet3/chainstate" ]
-then
-        echo -e " ${GREEN}Chainstate found, removing${NC}"
-        rm -rf ~/.syscoincore/testnet3/chainstate
-else
-        echo -e " ${ORANGE}no Chainstate folder found, skipping${NC}"
-fi
-sleep 1
-
-echo -e "${CYAN}Starting Syscoincore with -reindex parameter${NC}"
-~/syscoin/src/syscoind -reindex
+echo -e "${CYAN}Starting Syscoincore${NC}"
+~/syscoin/src/syscoind
 sleep 15
 
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
