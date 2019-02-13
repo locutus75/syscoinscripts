@@ -35,7 +35,7 @@ fi
 cd ~/temp
 sleep 1
 
-echo -e "${CYAN}Downloading Syscoin-Core master${NC}"
+echo -e "${CYAN}Downloading Syscoin-Core dev-4.x build${NC}"
 git clone https://github.com/syscoin/syscoin -b dev-4.x
 sleep 1
 
