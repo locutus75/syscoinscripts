@@ -106,7 +106,7 @@ echo -e "${CYAN}Starting Syscoincore with -reindex parameter${NC}"
 sleep 15
 
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
-./syscoin/src/syscoin-cli getinfo | grep \"version
+./syscoin/src/syscoin-cli getnetworkinfo | grep \"subversion
 echo -e "${GREEN}Done.${NC}"
 echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1q7jk6rprg3kl0psqpjlazn4ystjzpc9g2jgxrws${NC}"
 echo -e "${PURPLE}Thanks!${NC}"
