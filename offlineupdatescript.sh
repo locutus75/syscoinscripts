@@ -87,49 +87,19 @@ sleep 2
 
 echo -e "${CYAN}Moving directories${NC}"
 mv ~/syscoin ~/temp/syscoin-previous
-sleep 2
+sleep 5
 mv ~/temp/syscoin ~/syscoin
 sleep 2
 
 echo -e "${CYAN}Removing old debug.log${NC}"
-if [ -e "/home/$USER/.syscoincore/debug.log" ]
+if [ -e "/home/$USER/.syscoin/debug.log" ]
 then
         echo -e " ${GREEN}debug.log found, removing${NC}"
-        rm ~/.syscoincore/debug.log
+        rm ~/.syscoin/debug.log
 else
         echo -e " ${ORANGE}no debug.log found, skipping${NC}"
 fi
 sleep 2
-
-echo -e "${CYAN}Removing previous peers.dat${NC}"
-if [ -e "/home/$USER/.syscoincore/peers.dat" ]
-then
-        echo -e " ${GREEN}peers.dat found, removing${NC}"
-        rm ~/.syscoincore/peers.dat
-else
-        echo -e " ${ORANGE}no peers.dat found, skipping${NC}"
-fi
-sleep 1
-
-echo -e "${CYAN}Removing previous Blocks folder${NC}"
-if [ -d "/home/$USER/.syscoincore/blocks" ]
-then
-        echo -e " ${GREEN}Blocks folder found, removing${NC}"
-        rm -rf ~/.syscoincore/blocks
-else
-        echo -e " ${ORANGE}no Blocks folder found, skipping${NC}"
-fi
-sleep 1
-
-echo -e "${CYAN}Removing previous Chainstate folder${NC}"
-if [ -d "/home/$USER/.syscoincore/chainstate" ]
-then
-        echo -e " ${GREEN}Chainstate found, removing${NC}"
-        rm -rf ~/.syscoincore/chainstate
-else
-        echo -e " ${ORANGE}no Chainstate folder found, skipping${NC}"
-fi
-sleep 1
 
 echo -e "${CYAN}Starting Syscoincore with -reindex parameter${NC}"
 ~/syscoin/src/syscoind -reindex
@@ -138,5 +108,5 @@ sleep 15
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
 ./syscoin/src/syscoin-cli getinfo | grep \"version
 echo -e "${GREEN}Done.${NC}"
-echo -e "${CYAN}Liked it? Syscoin Tippingjar alias: ${ORANGE}donations${CYAN} or use address ${ORANGE}SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG${NC}"
+echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1q7jk6rprg3kl0psqpjlazn4ystjzpc9g2jgxrws${NC}"
 echo -e "${PURPLE}Thanks!${NC}"
