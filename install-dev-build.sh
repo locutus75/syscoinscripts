@@ -108,5 +108,3 @@ sleep 15
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
 ./syscoin/src/syscoin-cli getinfo | grep \"version
 echo -e "${GREEN}Done.${NC}"
-echo -e "${CYAN}Liked it? Syscoin Tippingjar alias: ${ORANGE}donations${CYAN} or use address ${ORANGE}SRPz8SEEGQ7yXLGuRtMXDYPwagm8JuXrmG${NC}"
-echo -e "${PURPLE}Thanks!${NC}"
