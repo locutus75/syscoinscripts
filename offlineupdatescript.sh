@@ -89,24 +89,46 @@ echo -e "${CYAN}Moving directories${NC}"
 mv ~/syscoin ~/temp/syscoin-previous
 sleep 5
 mv ~/temp/syscoin ~/syscoin
-sleep 2
+sleep 5
 
-echo -e "${CYAN}Removing old debug.log${NC}"
-if [ -e "/home/$USER/.syscoin/debug.log" ]
+echo -e "${CYAN}Moving previous datadir${NC}"
+if [ -d "/home/$USER/.syscoin" ]
 then
-        echo -e " ${GREEN}debug.log found, removing${NC}"
-        rm ~/.syscoin/debug.log
-else
-        echo -e " ${ORANGE}no debug.log found, skipping${NC}"
-fi
-sleep 2
+        echo -e " ${GREEN}Folder found, moving it to ~/temp/.syscoin-previous{NC}"
 
-echo -e "${CYAN}Starting Syscoincore with -reindex parameter${NC}"
-~/syscoin/src/syscoind -reindex
+	if [ -d "/home/$USER/temp/.syscoin-previous" ]
+	then
+		echo -e "${GREEN}Previous folder found, renaming to ~/temp/.syscoin-"$date_today${NC}
+		mv ~/temp/.syscoin-previous ~/temp/.syscoin-$date_today
+		mv ~/.syscoin ~/temp/.syscoin-previous
+		mkdir ~/.syscoin
+	else
+		echo -e "${ORANGE}No previous ~/temp/.syscoin-previous folder found.${NC}"
+		mv ~/.syscoin ~/temp/.syscoin-previous
+		mkdir ~/.syscoin
+	fi
+else
+        echo -e " ${ORANGE}No Previous folder found, something is off here! I suggest you reboot first.${NC}"
+	mkdir ~/.syscoin
+fi
+sleep 5
+
+if [ -e "/home/$USER/temp/.syscoin-previous/syscoin.conf" ]
+then
+	echo -e "${CYAN}Copying back syscoin.conf${NC}"
+	cp ~/temp/.syscoin-previous/syscoin.conf ~/.syscoin/syscoin.conf
+else
+        echo -e " ${ORANGE}No previous syscoin.conf found, skipping${NC}"
+fi
+sleep 5
+
+echo -e "${CYAN}Starting Syscoincore...${NC}"
+~/syscoin/src/syscoind
+echo -e "${CYAN}Please standby...${NC}"
 sleep 15
 
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
 ./syscoin/src/syscoin-cli getnetworkinfo | grep \"subversion
 echo -e "${GREEN}Done.${NC}"
-echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1q7jk6rprg3kl0psqpjlazn4ystjzpc9g2jgxrws${NC}"
+echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
 echo -e "${PURPLE}Thanks!${NC}"
