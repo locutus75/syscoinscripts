@@ -1,13 +1,19 @@
 #!/bin/bash
 
-#scriptbanpre410nodes.sh version 0.1.0
+#scriptbanpre306nodes.sh version 0.2.2
 #thanks to jg@slack
 
 function syscli() { sudo su -c "syscoin-cli $*" syscoin; }
 
 # get the info of all peers
-peerinfo=$( syscli getpeerinfo )
-# count the number of peers
+
+if [ -d "/home/$USER/syscoin/src" ]
+then
+	peerinfo=$(~/syscoin/src/syscoin-cli getpeerinfo)
+else
+	peerinfo=$( syscli getpeerinfo )
+fi
+	# count the number of peers
 peercount=$(echo "$peerinfo" | grep "subver" | awk '{ count++ } END { print count }')
 
 # loop through each peer node checking if its version is lower than 3.0.6
@@ -30,11 +36,16 @@ do
   # if the version is lower than 4.1.0 then ban the node for one week (in seconds)
   if [ $mainver -eq 4 ] && [ $subver -eq 1 ] && [ $subsubver -lt 0 ]
   then
-    syscli setban $ip add 604800
+  	if [ -d "/home/$USER/syscoin/src" ]
+		then
+		    	~/syscoin/src/syscoin-cli setban $ip add 604800
+		else
+		    	syscli setban $ip add 604800
+  	fi
 	date
  	echo $mainver"."$subver"."$subsubver"? BANNED! Bye bye" $ip"! See you in a week!"
 	echo
-  fi
+fi
 
   let counter+=1
 done
