@@ -16,7 +16,7 @@ fi
 	# count the number of peers
 peercount=$(echo "$peerinfo" | grep "subver" | awk '{ count++ } END { print count }')
 
-# loop through each peer node checking if its version is lower than 3.0.6
+# loop through each peer node checking if its version is ok
 counter=1
 while [ $counter -le $peercount ];
 do
