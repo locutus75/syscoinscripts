@@ -217,7 +217,8 @@ EOF
 
 if [ -d "/home/$USER/syscoin/src" ]
         then
-                echo "$ADDNODES" >> ~/.syscoin/syscoin.conf
+                cp ~/.syscoin/syscoin.conf ~/.syscoin/syscoin.org
+		echo "$ADDNODES" >> ~/.syscoin/syscoin.conf
 
 				stop_syscoind(){
 					echo "Stopping..."
@@ -231,9 +232,9 @@ if [ -d "/home/$USER/syscoin/src" ]
 					clear
 				}
 
-		else
-				
-				echo "$ADDNODES" >> /home/syscoin/.syscoin/syscoin.conf
+	else
+		cp /home/syscoin/.syscoin/syscoin.conf /home/syscoin/.syscoin/syscoin.org				
+		echo "$ADDNODES" >> /home/syscoin/.syscoin/syscoin.conf
 
 				stop_syscoind(){
 					echo "Stopping..."
@@ -248,7 +249,6 @@ if [ -d "/home/$USER/syscoin/src" ]
 				}
 				
 fi
-
 
 stop_syscoind
 sleep 10
