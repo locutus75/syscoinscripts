@@ -1,0 +1,255 @@
+ADDNODES=$(cat <<EOF
+#begin-410nodes
+connect=104.238.159.17
+connect=104.248.16.65
+connect=104.248.32.242
+connect=104.248.83.179
+connect=104.248.89.200
+connect=104.248.91.227
+connect=108.61.165.65
+connect=116.202.26.64
+connect=116.202.97.66
+connect=116.202.98.191
+connect=116.203.234.201
+connect=116.203.63.177
+connect=134.209.198.105
+connect=134.209.202.125
+connect=134.209.202.98
+connect=134.209.230.94
+connect=134.209.240.115
+connect=136.243.29.206
+connect=136.244.84.209
+connect=138.197.136.61
+connect=138.197.162.30
+connect=138.201.20.140
+connect=139.47.18.78
+connect=139.59.15.243
+connect=139.59.35.78
+connect=139.59.38.45
+connect=139.59.83.185
+connect=140.82.58.25
+connect=140.82.61.201
+connect=142.93.102.49
+connect=142.93.109.51
+connect=142.93.141.109
+connect=142.93.141.195
+connect=142.93.212.60
+connect=142.93.231.66
+connect=142.93.237.0
+connect=157.230.100.104
+connect=157.230.120.171
+connect=157.230.126.37
+connect=157.230.247.117
+connect=157.230.37.249
+connect=157.245.64.131
+connect=157.245.78.48
+connect=159.203.28.57
+connect=159.65.1.29
+connect=159.65.10.170
+connect=159.65.131.95
+connect=159.65.80.225
+connect=159.69.122.173
+connect=159.69.221.123
+connect=159.69.53.33
+connect=159.89.121.191
+connect=159.89.166.167
+connect=159.89.166.244
+connect=159.89.168.96
+connect=164.68.104.158
+connect=164.68.112.216
+connect=165.22.197.114
+connect=165.22.199.16
+connect=165.22.200.179
+connect=165.22.220.98
+connect=165.22.231.16
+connect=165.22.232.139
+connect=165.22.25.151
+connect=165.22.29.220
+connect=165.22.51.237
+connect=165.22.57.179
+connect=165.22.71.51
+connect=165.227.34.151
+connect=165.227.46.218
+connect=167.172.175.251
+connect=167.71.1.30
+connect=167.71.12.52
+connect=167.71.195.51
+connect=167.71.39.26
+connect=167.71.49.152
+connect=167.71.5.24
+connect=167.71.50.11
+connect=167.71.68.118
+connect=167.71.76.238
+connect=167.71.79.219
+connect=167.71.79.51
+connect=167.86.103.119
+connect=167.86.111.183
+connect=167.86.124.249
+connect=167.86.125.171
+connect=167.86.71.39
+connect=167.86.72.23
+connect=167.86.79.45
+connect=167.86.87.58
+connect=167.86.88.201
+connect=167.86.89.49
+connect=167.86.91.133
+connect=167.99.192.54
+connect=167.99.196.254
+connect=167.99.241.30
+connect=167.99.85.133
+connect=167.99.89.255
+connect=173.212.225.161
+connect=173.249.13.18
+connect=173.249.22.125
+connect=173.249.46.88
+connect=173.249.50.17
+connect=174.138.23.236
+connect=176.10.127.156
+connect=176.9.210.11
+connect=176.9.210.8
+connect=178.128.102.88
+connect=178.128.207.85
+connect=178.128.231.89
+connect=178.128.240.28
+connect=178.128.244.149
+connect=178.128.246.84
+connect=178.128.35.66
+connect=178.157.82.70
+connect=178.203.133.97
+connect=178.238.227.115
+connect=178.238.228.234
+connect=178.238.237.116
+connect=178.238.237.250
+connect=178.62.197.53
+connect=185.233.106.147
+connect=188.40.251.203
+connect=188.68.40.139
+connect=195.123.213.251
+connect=195.201.234.12
+connect=199.116.115.148
+connect=202.182.122.113
+connect=206.116.243.20
+connect=206.81.19.212
+connect=207.180.208.104
+connect=207.180.211.134
+connect=207.180.216.182
+connect=207.246.123.217
+connect=209.250.252.230
+connect=209.97.171.73
+connect=209.97.180.176
+connect=213.136.85.79
+connect=213.32.16.239
+connect=34.241.109.167
+connect=44.229.172.224
+connect=45.32.233.178
+connect=45.76.82.156
+connect=45.77.137.106
+connect=46.101.118.159
+connect=46.4.217.230
+connect=46.4.217.231
+connect=5.181.48.222
+connect=5.181.48.35
+connect=5.181.49.131
+connect=5.181.49.54
+connect=5.181.50.194
+connect=5.181.50.216
+connect=5.181.50.217
+connect=5.181.50.245
+connect=5.181.51.153
+connect=5.181.51.186
+connect=5.181.51.27
+connect=5.181.51.33
+connect=5.45.111.243
+connect=52.207.94.153
+connect=68.183.205.239
+connect=68.183.220.225
+connect=68.183.221.133
+connect=68.183.227.13
+connect=68.183.71.196
+connect=69.19.186.59
+connect=73.108.253.114
+connect=78.141.201.179
+connect=78.141.214.13
+connect=78.141.218.65
+connect=80.241.211.167
+connect=81.105.47.92
+connect=88.198.50.66
+connect=88.198.53.177
+connect=88.99.165.11
+connect=88.99.80.84
+connect=89.40.13.104
+connect=93.211.140.209
+connect=93.235.84.6
+connect=94.130.163.244
+connect=94.130.204.136
+connect=94.130.217.97
+connect=94.156.35.67
+connect=94.16.118.185
+connect=95.179.132.175
+connect=95.179.132.59
+connect=95.179.149.74
+connect=95.179.254.76
+connect=95.216.1.214
+connect=95.216.101.73
+connect=95.216.126.44
+connect=95.216.136.128
+connect=95.216.163.121
+connect=95.216.192.94
+connect=95.216.206.115
+connect=95.216.230.117
+connect=95.216.43.32
+connect=95.216.68.226
+connect=95.216.69.59
+connect=95.216.77.93
+connect=95.216.79.228
+connect=95.216.79.233
+connect=95.217.11.18
+connect=95.217.15.2
+connect=95.217.41.36
+connect=95.217.48.108
+connect=95.217.48.110
+connect=95.217.6.189
+connect=96.30.194.251
+connect=96.71.246.90
+#end-410nodes
+EOF
+)
+
+if [ -d "/home/$USER/syscoin/src" ]
+        then
+                echo "$ADDNODES" >> ~/.syscoin/syscoin.conf
+
+				stop_syscoind(){
+					echo "Stopping..."
+					~/syscoin/src/syscoin-cli stop
+					clear
+				}
+
+				start_syscoind(){
+					echo "Starting..."
+					~/syscoin/src/syscoind
+					clear
+				}
+
+		else
+				
+				echo "$ADDNODES" >> /home/syscoin/.syscoin/syscoin.conf
+
+				stop_syscoind(){
+					echo "Stopping..."
+					sudo service syscoind stop
+					clear
+				}
+
+				start_syscoind(){
+					echo "Starting..."
+					sudo service syscoind start
+					clear
+				}
+				
+fi
+
+
+stop_syscoind
+sleep 10
+start_syscoind
