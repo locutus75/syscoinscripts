@@ -223,13 +223,11 @@ if [ -d "/home/$USER/syscoin/src" ]
 				stop_syscoind(){
 					echo "Stopping..."
 					~/syscoin/src/syscoin-cli stop
-					clear
 				}
 
 				start_syscoind(){
 					echo "Starting..."
 					~/syscoin/src/syscoind
-					clear
 				}
 
 	else
@@ -239,13 +237,11 @@ if [ -d "/home/$USER/syscoin/src" ]
 				stop_syscoind(){
 					echo "Stopping..."
 					sudo service syscoind stop
-					clear
 				}
 
 				start_syscoind(){
 					echo "Starting..."
 					sudo service syscoind start
-					clear
 				}
 				
 fi
