@@ -10,7 +10,7 @@ CYAN='\033[1;36m'
 NC='\033[0m' # No Color
 
 echo -e "${PURPLE}Updating Syscoincore${NC}"
-sleep 1
+sleep 5
 
 cd $home
 
@@ -33,11 +33,11 @@ else
         echo -e "${GREEN}Temp folder created.${NC}"
 fi
 cd ~/temp
-sleep 1
+sleep 2
 
 echo -e "${CYAN}Downloading Syscoin-Core master${NC}"
 git clone https://github.com/syscoin/syscoin -b master
-sleep 1
+sleep 2
 
 echo -e "${CYAN}Start building${NC}"
 cd syscoin
@@ -59,7 +59,7 @@ echo -e "${CYAN}Setting up Sentinel${NC}"
 cd src
 git clone https://github.com/syscoin/sentinel.git
 cd sentinel
-sleep 1
+sleep 2
 
 echo -e "${CYAN}Copying sentinel.conf${NC}"
 cp ~/syscoin/src/sentinel/sentinel.conf ~/temp/syscoin/src/sentinel/sentinel.conf
@@ -72,7 +72,7 @@ sleep 5
 echo -e "${CYAN}Shutting down Syscoincore${NC}"
 cd $home
 ~/syscoin/src/syscoin-cli stop
-sleep 10
+sleep 20
 
 echo -e "${CYAN}Checking previous folder${NC}"
 sleep 2
