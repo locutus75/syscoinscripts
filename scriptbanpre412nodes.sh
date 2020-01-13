@@ -32,8 +32,10 @@ do
   	if [ -d "/home/$USER/syscoin/src" ]
 		then
 		    	~/syscoin/src/syscoin-cli setban $ip add 604800
+			~/syscoin/src/syscoin-cli disconnectnode $ip":8369"
 		else
 		    	syscli setban $ip add 604800
+			syscli disconnectnode $ip":8369"
   	fi
 	date
  	echo "Found " $ver " - Bye bye" $ip"! See you in a week!"
