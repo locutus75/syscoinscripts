@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#scriptbanpre410nodes.sh version 0.1.0
+#scriptbanpre412nodes.sh version 0.1.0
 #thanks to jg@slack
 
 function syscli() { sudo su -c "syscoin-cli $*" syscoin; }
@@ -26,8 +26,8 @@ do
   ip=$(echo $peer | awk -F ':' '{ print $3 }' | awk -F '"' '{ print $2 }')
   # get the overall version string
   ver=$(echo $peer | awk -F '/' '{ print $2 }')
-  # if the version is lower than 4.1.0 then ban the node for one week (in seconds)
-  if [ $ver != "Satoshi:4.1.0" ]
+  # if the version is not 4.1.2 then ban the node for one week (in seconds)
+  if [ $ver != "Satoshi:4.1.2" ]
   then
   	if [ -d "/home/$USER/syscoin/src" ]
 		then
