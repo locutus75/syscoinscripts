@@ -123,7 +123,7 @@ fi
 sleep 5
 
 echo -e "${CYAN}Starting Syscoincore...${NC}"
-~/syscoin/src/syscoind
+~/syscoin/src/syscoind -reindex
 echo -e "${CYAN}Please standby...${NC}"
 sleep 15
 
