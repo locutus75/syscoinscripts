@@ -21,7 +21,7 @@ cd $home
 
 if [ -e "/root/syscoin-4.2.0rc5-x86_64-linux-gnu.tar.gz" ]
 then
-	echo -e " ${GREEN}Removing syscoin-4.2.0rc5-x86_64-linux-gnu.tar.gz${NC}"
+	echo -e "${GREEN}Removing syscoin-4.2.0rc5-x86_64-linux-gnu.tar.gz${NC}"
         rm ~/syscoin-4.2.0rc5-x86_64-linux-gnu.tar.gz
 else
         echo -e " ${ORANGE}no syscoin-4.2.0rc5-x86_64-linux-gnu.tar.gz found, skipping${NC}"
@@ -35,11 +35,11 @@ sleep 2
 echo -e "${CYAN}Unpacking...${NC}"
 tar xf syscoin-4.2.0rc6-x86_64-linux-gnu.tar.gz
 
-echo -e "    ${CYAN}Installing...${NC}"
+echo -e "${CYAN}Installing...${NC}"
 sleep 2
 sudo install -m 0755 -o root -g root -t /usr/local/bin syscoin-4.2.0rc6/bin/*
 
-echo -e "    ${CYAN}Cleaning up...${NC}"
+echo -e "${CYAN}Cleaning up...${NC}"
 sleep 2
 rm -r syscoin-4.2.0rc6
 rm ~/syscoin-4.2.0rc6-x86_64-linux-gnu.tar.gz
