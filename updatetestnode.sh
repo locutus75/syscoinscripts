@@ -51,6 +51,7 @@ sleep 15
 
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
 syscoin-cli getnetworkinfo | grep \"subversion
+syscoin-cli getblockchaininfo | grep \"blocks
 
 echo -e "${GREEN}Done.${NC}"
 echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
