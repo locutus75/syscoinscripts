@@ -54,7 +54,7 @@ rm -r syscoin-4.2.0rc7
 rm ~/syscoin-4.2.0rc7-x86_64-linux-gnu.tar.gz
 
 echo -e "${CYAN}Starting Syscoincore...${NC}"
-syscoind
+syscoind -reindex
 echo -e "${CYAN}Please standby...${NC}"
 sleep 15
 
