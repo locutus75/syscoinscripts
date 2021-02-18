@@ -63,7 +63,12 @@ rm -r syscoin-4.2.0rc8
 rm ~/syscoin-4.2.0rc8-x86_64-linux-gnu.tar.gz
 
 echo -e "${CYAN}Starting Syscoincore...${NC}"
-syscoind -reindex
+sleep 2
+rm -r ~/.syscoin/testnet3/blocks
+rm -r ~/.syscoin/testnet3/chainstate
+sleep 2
+syscoind
+
 echo -e "${CYAN}Please standby...${NC}"
 sleep 15
 
