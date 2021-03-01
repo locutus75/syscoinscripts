@@ -19,58 +19,30 @@ sleep 10
 
 cd $home
 
-if [ -e "/root/syscoin-4.2.0rc5-x86_64-linux-gnu.tar.gz" ]
+if [ -e "/root/syscoin-4.2.0rc9-x86_64-linux-gnu.tar.gz" ]
 then
-	echo -e "${GREEN}Removing syscoin-4.2.0rc5-x86_64-linux-gnu.tar.gz${NC}"
-        rm ~/syscoin-4.2.0rc5-x86_64-linux-gnu.tar.gz
+	echo -e "${GREEN}Removing syscoin-4.2.0rc9-x86_64-linux-gnu.tar.gz${NC}"
+        rm ~/syscoin-4.2.0rc9-x86_64-linux-gnu.tar.gz
 else
-        echo -e " ${ORANGE}no syscoin-4.2.0rc5-x86_64-linux-gnu.tar.gz found, skipping${NC}"
+        echo -e " ${ORANGE}no syscoin-4.2.0rc9-x86_64-linux-gnu.tar.gz found, skipping${NC}"
 fi
 sleep 2
-
-if [ -e "/root/syscoin-4.2.0rc6-x86_64-linux-gnu.tar.gz" ]
-then
-	echo -e "${GREEN}Removing syscoin-4.2.0rc6-x86_64-linux-gnu.tar.gz${NC}"
-        rm ~/syscoin-4.2.0rc6-x86_64-linux-gnu.tar.gz
-else
-        echo -e " ${ORANGE}no syscoin-4.2.0rc6-x86_64-linux-gnu.tar.gz found, skipping${NC}"
-fi
-sleep 2
-
-if [ -e "/root/syscoin-4.2.0rc7-x86_64-linux-gnu.tar.gz" ]
-then
-	echo -e "${GREEN}Removing syscoin-4.2.0rc7-x86_64-linux-gnu.tar.gz${NC}"
-        rm ~/syscoin-4.2.0rc7-x86_64-linux-gnu.tar.gz
-else
-        echo -e " ${ORANGE}no syscoin-4.2.0rc7-x86_64-linux-gnu.tar.gz found, skipping${NC}"
-fi
-sleep 2
-
-if [ -e "/root/syscoin-4.2.0rc8-x86_64-linux-gnu.tar.gz" ]
-then
-	echo -e "${GREEN}Removing syscoin-4.2.0rc8-x86_64-linux-gnu.tar.gz${NC}"
-        rm ~/syscoin-4.2.0rc8-x86_64-linux-gnu.tar.gz
-else
-        echo -e " ${ORANGE}no syscoin-4.2.0rc8-x86_64-linux-gnu.tar.gz found, skipping${NC}"
-fi
-sleep 2
-
 
 echo -e "${CYAN}Downloading new Testnode${NC}"
-wget https://github.com/syscoin/syscoin/releases/download/v4.2.0rc9/syscoin-4.2.0rc9-x86_64-linux-gnu.tar.gz
+wget https://github.com/syscoin/syscoin/releases/download/v4.2.0rc9/syscoin-4.2.0rc10-x86_64-linux-gnu.tar.gz
 sleep 2
 
 echo -e "${CYAN}Unpacking...${NC}"
-tar xf syscoin-4.2.0rc9-x86_64-linux-gnu.tar.gz
+tar xf syscoin-4.2.0rc10-x86_64-linux-gnu.tar.gz
 
 echo -e "${CYAN}Installing...${NC}"
 sleep 2
-sudo install -m 0755 -o root -g root -t /usr/local/bin syscoin-4.2.0rc9/bin/*
+sudo install -m 0755 -o root -g root -t /usr/local/bin syscoin-4.2.0rc10/bin/*
 
 echo -e "${CYAN}Cleaning up...${NC}"
 sleep 2
-rm -r syscoin-4.2.0rc9
-rm ~/syscoin-4.2.0rc9-x86_64-linux-gnu.tar.gz
+rm -r syscoin-4.2.0rc10
+rm ~/syscoin-4.2.0rc10-x86_64-linux-gnu.tar.gz
 
 echo -e "${CYAN}Starting Syscoincore...${NC}"
 sleep 2
