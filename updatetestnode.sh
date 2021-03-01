@@ -29,7 +29,7 @@ fi
 sleep 2
 
 echo -e "${CYAN}Downloading new Testnode${NC}"
-wget https://github.com/syscoin/syscoin/releases/download/v4.2.0rc9/syscoin-4.2.0rc10-x86_64-linux-gnu.tar.gz
+wget https://github.com/syscoin/syscoin/releases/download/v4.2.0rc10/syscoin-4.2.0rc10-x86_64-linux-gnu.tar.gz
 sleep 2
 
 echo -e "${CYAN}Unpacking...${NC}"
