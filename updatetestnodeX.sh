@@ -8,9 +8,9 @@ BLUE='\033[1;34m'
 PURPLE='\033[1;35m'
 CYAN='\033[1;36m'
 NC='\033[0m' # No Color
-RC=$1
+RC=12
 
-echo -e "${PURPLE}Updating Syscoin Testnode RC${NC}"${RC}
+echo -e "${PURPLE}Updating Syscoin Testnode RC${RC}${NC}"
 sleep 5
 
 echo -e "${CYAN}Shutting down Syscoincore...${NC}"
@@ -20,7 +20,7 @@ sleep 10
 
 cd $home
 
-echo -e "${CYAN}Downloading new Testnode RC${NC}"${RC}
+echo -e "${CYAN}Downloading new Testnode RC${RC}${NC}"
 wget https://github.com/syscoin/syscoin/releases/download/v4.2.0rc${RC}/syscoin-4.2.0rc${RC}-x86_64-linux-gnu.tar.gz
 sleep 2
 
