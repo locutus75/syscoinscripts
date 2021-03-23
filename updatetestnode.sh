@@ -47,7 +47,7 @@ echo -e "${CYAN}Please standby...${NC}"
 sleep 15
 
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
-syscoin-cli getnetworkinfo | grep \"subversion
+syscoin-cli -version
 syscoin-cli getblockchaininfo | grep \"blocks
 
 echo -e "${GREEN}Done.${NC}"
