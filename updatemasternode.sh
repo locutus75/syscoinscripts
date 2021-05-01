@@ -23,7 +23,7 @@ cd $home
 if [ -e "~/syscoin-${VER}-x86_64-linux-gnu.tar.gz" ]
 then
 	echo -e " ${ORANGE}Found old version file, removing${NC}"
-        rm ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
+        rm -f ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
 else
         echo -e " ${GREEN}No old version found, skipping${NC}"
 fi
@@ -31,7 +31,7 @@ fi
 if [ -d "~/syscoin-${VER}" ]
 then
         echo -e "${ORANGE}Previous folder found, removing${NC}"
-	rm -r ~/syscoin-${VER}
+	rm -rf ~/syscoin-${VER}
 else
         echo -e "${GREEN}Previous folder not found, skipping.${NC}"
 fi
