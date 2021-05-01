@@ -20,13 +20,22 @@ sleep 10
 
 cd $home
 
-if [ -e "/home/$USER/syscoin-${VER}-x86_64-linux-gnu.tar.gz" ]
+if [ -e "~/syscoin-${VER}-x86_64-linux-gnu.tar.gz" ]
 then
-	echo -e " ${GREEN}Found old version file, removing${NC}"
+	echo -e " ${ORANGE}Found old version file, removing${NC}"
         rm ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
 else
-        echo -e " ${ORANGE}No old version found, skipping${NC}"
+        echo -e " ${GREEN}No old version found, skipping${NC}"
 fi
+
+if [ -d "~/syscoin-${VER}" ]
+then
+        echo -e "${ORANGE}Previous folder found, removing${NC}"
+	rm -r ~/syscoin-${VER}
+else
+        echo -e "${GREEN}Previous folder not found, skipping.${NC}"
+fi
+
 sleep 2
 
 echo -e "${CYAN}Downloading new version ${VER}${NC}"
