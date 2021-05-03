@@ -25,7 +25,7 @@ then
 	echo -e " ${ORANGE}Found old version file, removing${NC}"
         rm -f ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
 else
-        echo -e " ${GREEN}No old version found, skipping${NC}"
+        echo -e "${GREEN}No old version found, skipping${NC}"
 fi
 
 if [ -d "~/syscoin-${VER}" ]
@@ -51,8 +51,8 @@ sudo install -m 0755 -o root -g root -t /usr/local/bin syscoin-${VER}/bin/*
 
 echo -e "${CYAN}Cleaning up...${NC}"
 sleep 2
-rm -r syscoin-${VER}
-rm ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
+rm -rf ~/syscoin-${VER}
+rm -f ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
 
 echo -e "${CYAN}Starting Syscoincore...${NC}"
 sleep 5
