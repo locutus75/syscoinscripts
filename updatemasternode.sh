@@ -8,7 +8,7 @@ BLUE='\033[1;34m'
 PURPLE='\033[1;35m'
 CYAN='\033[1;36m'
 NC='\033[0m' # No Color
-VER=4.2.0
+VER=4.2.1
 
 echo -e "${PURPLE}Updating Syscoin Masternode Versie ${VER}${NC}"
 sleep 5
