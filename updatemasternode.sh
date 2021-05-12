@@ -8,7 +8,14 @@ BLUE='\033[1;34m'
 PURPLE='\033[1;35m'
 CYAN='\033[1;36m'
 NC='\033[0m' # No Color
-VER=4.2.2
+
+tag_url="https://github.com/syscoin/syscoin/releases/latest/"
+tag_get="tag_name=v"
+tag_grep=$(curl -sL $tag_url | grep -o -m1 "$tag_get\?[0-9]*\.[0-9]*\.[0-9]*")
+((tag_pos=${#tag_get}+1))
+tag_ver=$(echo "$tag_grep" | cut -c$tag_pos-)
+
+VER=$tag_ver
 
 echo -e "${PURPLE}Updating Syscoin Masternode Versie ${VER}${NC}"
 sleep 5
