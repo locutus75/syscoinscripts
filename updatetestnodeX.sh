@@ -41,7 +41,7 @@ sleep 2
 echo rm -r ~/.syscoin/testnet3/blocks
 echo rm -r ~/.syscoin/testnet3/chainstate
 sleep 2
-syscoind - testnet
+syscoind -testnet
 
 echo -e "${CYAN}Please standby...${NC}"
 sleep 15
