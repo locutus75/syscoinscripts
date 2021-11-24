@@ -18,6 +18,14 @@ tag_ver=$(echo "$tag_grep" | cut -c$tag_pos-)
 VER=$tag_ver
 VER="4.3.0"
 
+echo -e "${PURPLE}Updating Packages${VER}${NC}"
+sudo apt-get -y update > /dev/null
+sudo apt-get -y install git python3 virtualenv > /dev/null
+echo -e "${PURPLE}Upgrading Packages${VER}${NC}"
+sudo apt-get -y upgrade > /dev/null
+echo -e "${PURPLE}Updating Packages again${VER}${NC}"
+sudo apt-get -y update > /dev/null
+
 echo -e "${PURPLE}Updating Syscoin Masternode Versie ${VER}${NC}"
 sleep 5
 
@@ -72,6 +80,11 @@ sleep 10
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
 syscoin-cli -version
 syscoin-cli getblockchaininfo | grep \"blocks
+
+echo -e "${PURPLE}Updating Sentinel${VER}${NC}"
+cd /root/sentinel
+git pull
+cd ..
 
 echo -e "${GREEN}Done.${NC}"
 echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
