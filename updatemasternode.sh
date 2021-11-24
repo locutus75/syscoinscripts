@@ -18,12 +18,12 @@ tag_ver=$(echo "$tag_grep" | cut -c$tag_pos-)
 VER=$tag_ver
 VER="4.3.0"
 
-echo -e "${PURPLE}Updating Packages${VER}${NC}"
+echo -e "${PURPLE}Updating Packages${NC}"
 sudo apt-get -y update > /dev/null
 sudo apt-get -y install git python3 virtualenv > /dev/null
-echo -e "${PURPLE}Upgrading Packages${VER}${NC}"
+echo -e "${PURPLE}Upgrading Packages{NC}"
 sudo apt-get -y upgrade > /dev/null
-echo -e "${PURPLE}Updating Packages again${VER}${NC}"
+echo -e "${PURPLE}Updating Packages again${NC}"
 sudo apt-get -y update > /dev/null
 
 echo -e "${PURPLE}Updating Syscoin Masternode Versie ${VER}${NC}"
@@ -81,7 +81,7 @@ echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
 syscoin-cli -version
 syscoin-cli getblockchaininfo | grep \"blocks
 
-echo -e "${PURPLE}Updating Sentinel${VER}${NC}"
+echo -e "${PURPLE}Updating Sentinel${NC}"
 cd /root/sentinel
 git pull
 cd ..
