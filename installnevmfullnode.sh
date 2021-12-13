@@ -61,7 +61,7 @@ rm -f ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
 echo -e "${CYAN}Starting Syscoincore...${NC}"
 mkdir /root/.syscoin
 sleep 5
-syscoind -daemon --datadir=/root/.syscoin --gethcommandline=--cache=512 --gethcommandline=--bootnodes=enode://6f417e6740e559818cedd1ae31ea339657f4580c06491ab9c9a7be9dc9136e858e5bc9a3c2e8d6ea49567af5102afced9d8a99c04410244b0c0880911720439a@3.133.0.208:30303
+syscoind -daemon --datadir=/root/.syscoin
 
 echo -e "${CYAN}Please standby...${NC}"
 sleep 10
