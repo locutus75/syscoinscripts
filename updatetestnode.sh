@@ -8,7 +8,7 @@ BLUE='\033[1;34m'
 PURPLE='\033[1;35m'
 CYAN='\033[1;36m'
 NC='\033[0m' # No Color
-RC=6
+RC=7
 
 echo -e "${PURPLE}Updating Syscoin Testnode 4.4 RC${RC}${NC}"
 sleep 5
