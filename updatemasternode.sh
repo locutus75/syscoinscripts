@@ -21,7 +21,7 @@ VER="4.4.0"
 echo -e "${PURPLE}Updating Packages${NC}"
 sudo apt-get -y update > /dev/null
 
-echo -e "${PURPLE}Updating Syscoin Masternode Versie ${VER}${NC}"
+echo -e "${PURPLE}Updating Syscoin Masternode to version ${VER}${NC}"
 sleep 5
 
 echo -e "${CYAN}Shutting down Syscoincore...${NC}"
