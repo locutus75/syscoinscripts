@@ -16,7 +16,7 @@ tag_grep=$(curl -sL $tag_url | grep -o -m1 "$tag_get\?[0-9]*\.[0-9]*\.[0-9]*")
 tag_ver=$(echo "$tag_grep" | cut -c$tag_pos-)
 
 VER=$tag_ver
-VER="4.3.0"
+VER="4.4.0"
 
 echo -e "${PURPLE}Updating Packages${NC}"
 sudo apt-get -y update > /dev/null
@@ -27,7 +27,7 @@ sleep 5
 echo -e "${CYAN}Shutting down Syscoincore...${NC}"
 syscoin-cli stop
 echo -e "${CYAN}Please standby...${NC}"
-sleep 10
+sleep 20
 
 cd $home
 
