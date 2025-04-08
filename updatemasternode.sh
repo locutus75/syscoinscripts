@@ -81,6 +81,7 @@ syscoin-cli getblockchaininfo | grep \"blocks
 # cd /root/sentinel
 # git pull
 # cd ..
+crontab -l | sed '/sentinel/s/^\([^#]\)/#\1/' | crontab -
 
 echo -e "${GREEN}Done.${NC}"
 echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
