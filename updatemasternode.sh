@@ -16,7 +16,7 @@ tag_grep=$(curl -sL $tag_url | grep -o -m1 "$tag_get\?[0-9]*\.[0-9]*\.[0-9]*")
 tag_ver=$(echo "$tag_grep" | cut -c$tag_pos-)
 
 VER=$tag_ver
-VER="4.4.2"
+VER="5.0.0"
 
 echo -e "${PURPLE}Updating Packages${NC}"
 sudo apt-get -y update > /dev/null
@@ -76,10 +76,11 @@ echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
 syscoin-cli -version
 syscoin-cli getblockchaininfo | grep \"blocks
 
-echo -e "${PURPLE}Updating Sentinel${NC}"
-cd /root/sentinel
-git pull
-cd ..
+# Sentinel has been deprecated since v.5
+# echo -e "${PURPLE}Updating Sentinel${NC}"
+# cd /root/sentinel
+# git pull
+# cd ..
 
 echo -e "${GREEN}Done.${NC}"
 echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
