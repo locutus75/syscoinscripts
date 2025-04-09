@@ -81,6 +81,7 @@ syscoin-cli getblockchaininfo | grep \"blocks
 # cd /root/sentinel
 # git pull
 # cd ..
+rm -rf /root/sentinel
 crontab -l | sed '/sentinel/s/^\([^#]\)/#\1/' | crontab -
 
 echo -e "${GREEN}Done.${NC}"
