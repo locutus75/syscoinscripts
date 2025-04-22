@@ -9,12 +9,12 @@ PURPLE='\033[1;35m'
 CYAN='\033[1;36m'
 NC='\033[0m' # No Color
 
-VER="4.3.0"
+VER="5.0.2"
 
 echo -e "${PURPLE}Updating Packages${NC}"
 sudo apt-get -y update > /dev/null
 
-echo -e "${PURPLE}Updating Syscoin Masternode Versie ${VER}${NC}"
+echo -e "${PURPLE}Updating Syscoin NEVM Node ${VER}${NC}"
 sleep 5
 
 echo -e "${CYAN}Shutting down Syscoincore...${NC}"
