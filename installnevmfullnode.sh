@@ -1,77 +1,106 @@
 #!/bin/bash
-clear
-date_today=$(date +%F)
-GREEN='\033[1;32m'
-RED='\033[1;31m'
-ORANGE='\033[1;33m'
-BLUE='\033[1;34m'
-PURPLE='\033[1;35m'
-CYAN='\033[1;36m'
-NC='\033[0m' # No Color
 
-VER="5.0.2"
+# Syscoin NEVM Node Installation Script
+# Ensure you run this as a user with sudo privileges
 
-echo -e "${PURPLE}Updating Packages${NC}"
-sudo apt-get -y update > /dev/null
+# Variables
+SYSCOIN_VERSION="5.0.2"
+SYSGETH_VERSION="1.1.4"
+INSTALL_DIR="$HOME/syscoin"
+CONFIG_DIR="$HOME/.syscoin"
 
-echo -e "${PURPLE}Updating Syscoin NEVM Node ${VER}${NC}"
-sleep 5
+# Create installation directory
+mkdir -p $INSTALL_DIR
+cd $INSTALL_DIR
 
-echo -e "${CYAN}Shutting down Syscoincore...${NC}"
-syscoin-cli stop
-echo -e "${CYAN}Please standby...${NC}"
-sleep 10
+# Download Syscoin Core
+wget https://github.com/syscoin/syscoin/releases/download/v$SYSCOIN_VERSION/syscoin-$SYSCOIN_VERSION-x86_64-linux-gnu.tar.gz
 
-cd $home
+tar -xzvf syscoin-$SYSCOIN_VERSION-x86_64-linux-gnu.tar.gz
+sudo cp syscoin-$SYSCOIN_VERSION/bin/* /usr/local/bin/
 
-if [ -e "~/syscoin-${VER}-x86_64-linux-gnu.tar.gz" ]
-then
-	echo -e " ${ORANGE}Found old version file, removing${NC}"
-        rm -f ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
-else
-        echo -e "${GREEN}No old version found, skipping${NC}"
-fi
+# Create syscoin.conf
+mkdir -p $CONFIG_DIR
+cat > $CONFIG_DIR/syscoin.conf <<EOF
+server=1
+daemon=1
+rpcuser=syscoinrpc
+rpcpassword=$(openssl rand -hex 16)
+txindex=1
+listen=1
+rpcallowip=127.0.0.1
+rpcbind=127.0.0.1
+EOF
 
-if [ -d "~/syscoin-${VER}" ]
-then
-        echo -e "${ORANGE}Previous folder found, removing${NC}"
-	rm -rf ~/syscoin-${VER}
-else
-        echo -e "${GREEN}Previous folder not found, skipping.${NC}"
-fi
+# Start Syscoin Core to begin sync
+syscoind
 
-sleep 2
+echo "Syscoin Core started and syncing..."
 
-echo -e "${CYAN}Downloading new version ${VER}${NC}"
-wget https://github.com/syscoin/syscoin/releases/download/v${VER}/syscoin-${VER}-x86_64-linux-gnu.tar.gz
-sleep 2
+# Download and install Syscoin Geth (sysgeth)
+cd $INSTALL_DIR
+wget https://github.com/syscoin/syscoin/releases/download/v$SYSCOIN_VERSION/sysgeth-linux-amd64.tar.gz
 
-echo -e "${CYAN}Unpacking...${NC}"
-tar xf syscoin-${VER}-x86_64-linux-gnu.tar.gz
+tar -xzvf sysgeth-linux-amd64.tar.gz
+sudo cp sysgeth /usr/local/bin/
 
-echo -e "${CYAN}Installing...${NC}"
-sleep 2
-sudo install -m 0755 -o root -g root -t /usr/local/bin syscoin-${VER}/bin/*
+# Create NEVM directory
+mkdir -p $HOME/.sysgeth
 
-echo -e "${CYAN}Cleaning up...${NC}"
-sleep 2
-rm -rf ~/syscoin-${VER}
-rm -f ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
+# Generate sysgeth config file
+cat > $HOME/.sysgeth/config.toml <<EOF
+[Node]
+DataDir = "$HOME/.sysgeth"
+IPCPath = "geth.ipc"
+HTTPHost = "127.0.0.1"
+HTTPPort = 8545
+HTTPModules = ["eth", "net", "web3"]
+WSHost = "127.0.0.1"
+WSPort = 8546
+WSModules = ["eth", "net", "web3"]
 
-echo -e "${CYAN}Starting Syscoincore...${NC}"
-mkdir /root/.syscoin
-sleep 5
-syscoind -daemon --datadir=/root/.syscoin
+[Node.P2P]
+ListenAddr = ":30303"
+MaxPeers = 50
 
-echo -e "${CYAN}Please standby...${NC}"
-sleep 10
+[Eth]
+SyncMode = "full"
+NetworkId = 57
 
-echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
-syscoin-cli -version
-echo -e "${CYAN}Syncing...${ORANGE}"
-sleep 5
-syscoin-cli getblockchaininfo | grep \"blocks
+[Eth.TxPool]
+Locals = []
+NoLocals = true
+EOF
 
-echo -e "${GREEN}Done.${NC}"
-echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
-echo -e "${PURPLE}Thanks!${NC}"
+# Create service scripts to manage the node
+cat > $INSTALL_DIR/start_node.sh <<EOF
+#!/bin/bash
+syscoind &
+sysgeth --config $HOME/.sysgeth/config.toml &
+EOF
+
+chmod +x $INSTALL_DIR/start_node.sh
+
+# Create a node status script
+cat > $INSTALL_DIR/status_node.sh <<EOF
+#!/bin/bash
+echo "Syscoin Core Sync Status:"
+syscoin-cli getblockchaininfo | grep verificationprogress
+
+echo -e "\nSyscoin NEVM Geth Status:"
+curl -X POST --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' http://localhost:8545
+EOF
+
+chmod +x $INSTALL_DIR/status_node.sh
+
+# Inform user
+cat <<EOL
+
+Installation Complete!
+
+- Use "$INSTALL_DIR/start_node.sh" to start both Syscoin Core and Syscoin Geth.
+- Use "$INSTALL_DIR/status_node.sh" to check sync status.
+
+Your Syscoin NEVM node is now syncing!
+
+EOL
