@@ -65,9 +65,9 @@ sleep 2
 rm -rf ~/syscoin-${VER}
 rm -f ~/syscoin-${VER}-x86_64-linux-gnu.tar.gz
 
-echo -e "${CYAN}Starting Syscoincore...${NC}"
+echo -e "${CYAN}Starting Syscoincore with reindex...${NC}"
 sleep 15
-syscoind
+syscoind -reindex
 
 echo -e "${CYAN}Please standby...${NC}"
 sleep 10
