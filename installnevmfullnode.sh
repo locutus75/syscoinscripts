@@ -4,7 +4,7 @@
 # Ensure you run this as a user with sudo privileges
 
 # Variables
-SYSCOIN_VERSION="5.0.2"
+SYSCOIN_VERSION="5.0.3"
 SYSGETH_VERSION="1.1.4"
 INSTALL_DIR="$HOME/syscoin"
 CONFIG_DIR="$HOME/.syscoin"
