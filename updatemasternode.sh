@@ -84,11 +84,11 @@ rm -rf "$HOME/syscoin-${VER}"
 rm -f "$HOME/syscoin-${VER}-x86_64-linux-gnu.tar.gz"
 
 # Ask the user what to do next
-echo -e "${CYAN}Choose an action before restarting SyscoinCore:${NC}"
-echo "1) Reindex blockchain (recommended for data integrity issues)"
-echo "2) Clean ~/.syscoin except syscoin.conf and reboot"
-echo "3) Cancel"
-read -rp "Enter your choice [1-3]: " user_choice
+echo -e "${GREEN}Choose an action before restarting SyscoinCore:${NC}"
+echo "${ORANGE}1) Reindex blockchain (recommended for data integrity issues)${NC}"
+echo "${ORANGE}2) Clean ~/.syscoin except syscoin.conf and reboot (recommended with update)${NC}"
+echo "${RED}3) Cancel${NC}"
+read -rp "${CYAN}Enter your choice [1-3]: ${NC}" user_choice
 
 case "$user_choice" in
     1)
