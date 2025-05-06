@@ -88,7 +88,7 @@ echo -e "${GREEN}Choose an action before restarting SyscoinCore:${NC}"
 echo "1) Reindex blockchain (recommended for data integrity issues)"
 echo "2) Clean ~/.syscoin except syscoin.conf and reboot (recommended with update)"
 echo "3) Cancel"
-read -rp "${GREEN}Enter your choice [1-3]: ${NC}" user_choice
+read -rp "Enter your choice [1-3]: " user_choice
 
 case "$user_choice" in
     1)
