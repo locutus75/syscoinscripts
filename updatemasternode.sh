@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 clear
 
 # Set up color variables
@@ -25,17 +24,23 @@ tag_ver=$(echo "$tag_grep" | cut -c$tag_pos-)
 VER=${tag_ver:-"5.0.3"}
 
 echo -e "${PURPLE}Updating Packages${NC}"
-sudo apt-get -y update > /dev/null
+if ! sudo apt-get -y update > /dev/null; then
+    echo -e "${RED}Package update failed. Exiting.${NC}"
+    exit 1
+fi
 
 echo -e "${PURPLE}Updating Syscoin Masternode to version ${VER}${NC}"
 sleep 5
 
 echo -e "${CYAN}Shutting down Syscoincore...${NC}"
-syscoin-cli stop
+if ! syscoin-cli stop; then
+    echo -e "${RED}Failed to stop syscoin-cli. Continuing anyway...${NC}"
+fi
+
 echo -e "${CYAN}Please standby...${NC}"
 sleep 20
 
-cd "$HOME"
+cd "$HOME" || { echo -e "${RED}Failed to change to home directory. Exiting.${NC}"; exit 1; }
 
 if [ -e "$HOME/syscoin-${VER}-x86_64-linux-gnu.tar.gz" ]; then
     echo -e "${ORANGE}Found old version file, removing${NC}"
@@ -54,15 +59,24 @@ fi
 sleep 2
 
 echo -e "${CYAN}Downloading new version ${VER}${NC}"
-wget https://github.com/syscoin/syscoin/releases/download/v${VER}/syscoin-${VER}-x86_64-linux-gnu.tar.gz
+if ! wget https://github.com/syscoin/syscoin/releases/download/v${VER}/syscoin-${VER}-x86_64-linux-gnu.tar.gz; then
+    echo -e "${RED}Download failed. Exiting.${NC}"
+    exit 1
+fi
 sleep 2
 
 echo -e "${CYAN}Unpacking...${NC}"
-tar xf syscoin-${VER}-x86_64-linux-gnu.tar.gz
+if ! tar xf syscoin-${VER}-x86_64-linux-gnu.tar.gz; then
+    echo -e "${RED}Extraction failed. Exiting.${NC}"
+    exit 1
+fi
 
 echo -e "${CYAN}Installing...${NC}"
 sleep 2
-sudo install -m 0755 -o root -g root -t /usr/local/bin syscoin-${VER}/bin/*
+if ! sudo install -m 0755 -o root -g root -t /usr/local/bin syscoin-${VER}/bin/*; then
+    echo -e "${RED}Install failed. Exiting.${NC}"
+    exit 1
+fi
 
 echo -e "${CYAN}Cleaning up...${NC}"
 sleep 2
@@ -80,7 +94,10 @@ case "$user_choice" in
     1)
         echo -e "${CYAN}Starting Syscoincore with reindex...${NC}"
         sleep 5
-        syscoind -reindex
+        if ! syscoind -reindex; then
+            echo -e "${RED}Syscoind failed to start with reindex.${NC}"
+            exit 1
+        fi
         ;;
     2)
         echo -e "${ORANGE}Cleaning ~/.syscoin except syscoin.conf...${NC}"
@@ -91,7 +108,7 @@ case "$user_choice" in
         ;;
     3)
         echo -e "${RED}Cancelled by user. Exiting.${NC}"
-        exit 1
+        exit 0
         ;;
     *)
         echo -e "${RED}Invalid choice. Exiting.${NC}"
@@ -103,10 +120,13 @@ echo -e "${CYAN}Please standby...${NC}"
 sleep 10
 
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
-syscoin-cli -version
-syscoin-cli getblockchaininfo | grep \"blocks\"
+if ! syscoin-cli -version; then
+    echo -e "${RED}Failed to check Syscoin version.${NC}"
+fi
 
-# Sentinel has been deprecated since v5
+syscoin-cli getblockchaininfo | grep \"blocks\" || echo -e "${RED}Could not fetch blockchain info.${NC}"
+
+# Sentinel cleanup
 rm -rf /root/sentinel
 crontab -l | sed '/sentinel/s/^\([^#]\)/#\1/' | crontab -
 
