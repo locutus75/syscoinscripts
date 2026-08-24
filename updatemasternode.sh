@@ -21,7 +21,7 @@ tag_grep=$(curl -sL $tag_url | grep -o -m1 "$tag_get\?[0-9]*\.[0-9]*\.[0-9]*")
 tag_ver=$(echo "$tag_grep" | cut -c$tag_pos-)
 
 # Use fetched version or default
-VER=${tag_ver:-"5.1.0"}
+VER=${tag_ver:-"5.1.1"}
 
 echo -e "${PURPLE}Updating Packages${NC}"
 if ! sudo apt-get -y update > /dev/null; then
