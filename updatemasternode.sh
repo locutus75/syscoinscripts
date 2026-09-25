@@ -1,12 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-# Set up color variables
+# Set up color variables (cleared later when the output is not a terminal)
 GREEN='\033[1;32m'
 RED='\033[1;31m'
 ORANGE='\033[1;33m'
 PURPLE='\033[1;35m'
 CYAN='\033[1;36m'
+BLUE='\033[1;38;5;33m'
+BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m' # No Color
 
 usage() {
@@ -76,6 +79,89 @@ if [ "$NO_ANIMATION" -eq 0 ] && [ -t 1 ] && [ -t 2 ] && [ "${TERM:-dumb}" != "du
     && [ "$(locale charmap 2> /dev/null || true)" = "UTF-8" ] && command -v awk > /dev/null; then
     ANIMATE=1
 fi
+
+# No colours when the output goes to a file/cron log, or when NO_COLOR is set
+if [ ! -t 1 ] || [ -n "${NO_COLOR:-}" ]; then
+    GREEN="" RED="" ORANGE="" PURPLE="" CYAN="" BLUE="" BOLD="" DIM="" NC=""
+fi
+
+# ---------------------------------------------------------------------------
+# Output helpers: numbered steps with a header line, and indented status lines
+# with a symbol in front. ASCII symbols when the locale is not UTF-8.
+# ---------------------------------------------------------------------------
+if [ "$(locale charmap 2> /dev/null || true)" = "UTF-8" ]; then
+    I_OK="✔" I_FAIL="✘" I_WARN="!" I_INFO="›" I_ASK="?" LINE="─"
+    BOX_TL="╭" BOX_TR="╮" BOX_BL="╰" BOX_BR="╯" BOX_V="│"
+else
+    I_OK="+" I_FAIL="x" I_WARN="!" I_INFO=">" I_ASK="?" LINE="-"
+    BOX_TL="+" BOX_TR="+" BOX_BL="+" BOX_BR="+" BOX_V="|"
+fi
+STEP=0
+STEPS=7
+
+repeat() { # string, count
+    local out=""
+    printf -v out '%*s' "$2" ''
+    printf '%s' "${out// /$1}"
+}
+
+step() { # title
+    local title
+    STEP=$((STEP + 1))
+    title=" [${STEP}/${STEPS}] $1 "
+    echo
+    echo -e "${BLUE}$(repeat "$LINE" 2)${NC}${BOLD}${title}${NC}${BLUE}$(repeat "$LINE" $((60 - ${#title})))${NC}"
+}
+
+info() { echo -e "   ${DIM}${I_INFO}${NC} $*"; }
+ok()   { echo -e "   ${GREEN}${I_OK}${NC} $*"; }
+warn() { echo -e "   ${ORANGE}${I_WARN} $*${NC}"; }
+fail() { echo -e "   ${RED}${I_FAIL} $*${NC}"; }
+kv()   { printf "   ${DIM}%-16s${NC} %b\n" "$1" "$2"; }
+
+# Length of a string without colour codes
+visible_len() {
+    local plain
+    plain=$(printf '%b' "$1" | sed 's/\x1b\[[0-9;]*m//g')
+    echo "${#plain}"
+}
+
+# Box with a title and "label=value" rows
+summary_box() { # title, rows...
+    local title="$1" row label value width=0 len line
+    local -a lines=()
+    shift
+    local maxw=74 cols
+    if [ -t 1 ]; then
+        cols=$(stty size < /dev/tty 2> /dev/null | cut -d' ' -f2 || true)
+        if [ -n "$cols" ] && [ "$cols" -gt 30 ]; then
+            maxw=$((cols - 6))
+        fi
+    fi
+    for row in "$@"; do
+        label="${row%%=*}"
+        value="${row#*=}"
+        if [ "$(visible_len "$value")" -gt $((maxw - 15)) ] && [[ "$value" != *$'\033'* ]] && [[ "$value" != *'\033'* ]]; then
+            value="...${value: -$((maxw - 18))}"
+        fi
+        line="$(printf '%-14s' "$label") ${value}"
+        lines+=("$line")
+        len=$(visible_len "$line")
+        if [ "$len" -gt "$width" ]; then
+            width=$len
+        fi
+    done
+    if [ "$width" -lt $((${#title} + 4)) ]; then
+        width=$((${#title} + 4))
+    fi
+    echo
+    echo -e "${BLUE}${BOX_TL}${LINE} ${NC}${BOLD}${title}${NC}${BLUE} $(repeat "$LINE" $((width - ${#title} + 1)))${BOX_TR}${NC}"
+    for line in "${lines[@]}"; do
+        len=$(visible_len "$line")
+        echo -e "${BLUE}${BOX_V}${NC}  ${line}$(repeat " " $((width - len)))  ${BLUE}${BOX_V}${NC}"
+    done
+    echo -e "${BLUE}${BOX_BL}$(repeat "$LINE" $((width + 4)))${BOX_BR}${NC}"
+}
 
 WORK_DIR=""
 cleanup() {
@@ -317,14 +403,14 @@ for _s in "(S)" "(S)" "|S|" " | " "|S|" "(S)"; do
 done
 
 spin_frame() { # message, frame counter, start time
-    printf '\r\033[K %b %b%s %b(%ds)%b' "${SPIN[$(($2 / 2 % ${#SPIN[@]}))]}" "$CYAN" "$1" "$NC" $((SECONDS - $3)) "$NC" >&2
+    printf '\r\033[K   %b %s %b%ds%b' "${SPIN[$(($2 / 2 % ${#SPIN[@]}))]}" "$1" "$DIM" $((SECONDS - $3)) "$NC" >&2
 }
 
 spin_done() { # exit code, message, start time
     if [ "$1" -eq 0 ]; then
-        printf '\r\033[K %b✔%b %s (%ds)\n' "$GREEN" "$NC" "$2" $((SECONDS - $3)) >&2
+        printf '\r\033[K   %b%s%b %s %b%ds%b\n' "$GREEN" "$I_OK" "$NC" "$2" "$DIM" $((SECONDS - $3)) "$NC" >&2
     else
-        printf '\r\033[K %b✘%b %s (%ds)\n' "$RED" "$NC" "$2" $((SECONDS - $3)) >&2
+        printf '\r\033[K   %b%s %s%b %b%ds%b\n' "$RED" "$I_FAIL" "$2" "$NC" "$DIM" $((SECONDS - $3)) "$NC" >&2
     fi
     printf '\033[?25h' >&2
 }
@@ -335,7 +421,7 @@ spin_run() {
     local msg="$1" start=$SECONDS i=0 rc=0 pid out
     shift
     if [ "$ANIMATE" -eq 0 ]; then
-        echo -e "${CYAN}${msg}...${NC}" >&2
+        info "${msg}..." >&2
         "$@"
         return
     fi
@@ -363,7 +449,7 @@ spin_until() {
     local timeout="$1" msg="$2" start=$SECONDS i=0
     shift 2
     if [ "$ANIMATE" -eq 0 ]; then
-        echo -e "${CYAN}${msg} (max ${timeout}s)...${NC}"
+        info "${msg} (max ${timeout}s)..."
         while [ $((SECONDS - start)) -lt "$timeout" ]; do
             "$@" && return 0
             sleep 1
@@ -385,7 +471,7 @@ spin_until() {
 }
 
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}Please run this script as root, e.g.: sudo $0${NC}"
+    fail "Please run this script as root, e.g.: sudo $0"
     exit 1
 fi
 
@@ -393,11 +479,12 @@ fi
 if [ "$ANIMATE" -eq 1 ]; then
     printf '\033[H\033[2J'
 fi
-show_coin 2 "${CYAN}\033[1mS Y S C O I N${NC}" "${PURPLE}Masternode updater${NC}"
+show_coin 2 "${CYAN}${BOLD}S Y S C O I N${NC}" "${PURPLE}Masternode updater${NC}"
 
 BIN_DIR="/usr/local/bin"
 DATA_DIR="$HOME/.syscoin"
 BACKUP_DIR="$HOME/syscoin-backup-$(date +%F-%H%M%S)"
+BACKUP_SHOW="${BACKUP_DIR/#$HOME/\~}"
 SERVICE="syscoind"
 USED_SYSTEMD=0
 INSTALLED_VER=""
@@ -407,17 +494,19 @@ START_ARGS=()
 confirm() {
     local answer=""
     if [ "$ASSUME_YES" -eq 1 ]; then
-        echo "$1 -> yes (--yes)"
+        info "$1 ${DIM}-> yes (--yes)${NC}"
         return 0
     fi
-    read -rp "$1 [y/N]: " answer || true
+    printf '   %b%s%b %s %b[y/N]%b ' "$CYAN" "$I_ASK" "$NC" "$1" "$DIM" "$NC"
+    read -r answer || true
+    [ -t 0 ] || echo
     [[ "$answer" =~ ^[Yy]$ ]]
 }
 
 # Like confirm, but in non-interactive mode only yes when --force is given
 confirm_risky() {
     if [ "$ASSUME_YES" -eq 1 ] && [ "$FORCE" -eq 0 ]; then
-        echo "$1 -> no (use --force to allow)"
+        info "$1 ${DIM}-> no (use --force to allow)${NC}"
         return 1
     fi
     confirm "$1"
@@ -436,9 +525,10 @@ uses_systemd() {
 stop_node() {
     if uses_systemd; then
         USED_SYSTEMD=1
-        systemctl stop "$SERVICE" || echo -e "${ORANGE}systemctl stop failed, checking if syscoind is running...${NC}"
+        info "syscoind is managed by systemd (service ${SERVICE})"
+        systemctl stop "$SERVICE" || warn "systemctl stop failed, checking if syscoind is running..."
     else
-        syscoin-cli stop || echo -e "${ORANGE}syscoin-cli stop failed, checking if syscoind is running...${NC}"
+        syscoin-cli stop > /dev/null || warn "syscoin-cli stop failed, checking if syscoind is running..."
     fi
 
     spin_until 300 "Waiting for syscoind to shut down" node_stopped
@@ -450,9 +540,9 @@ start_node() {
         systemctl start "$SERVICE" || return 1
     else
         if [ "$USED_SYSTEMD" -eq 1 ]; then
-            echo -e "${ORANGE}Note: starting syscoind manually with $*, the systemd service stays inactive until the next restart.${NC}"
+            warn "Starting syscoind manually with $*, the systemd service stays inactive until the next restart."
         fi
-        syscoind -daemon "$@" || return 1
+        syscoind -daemon "$@" > /dev/null || return 1
     fi
 
     # Make sure the process is still alive after startup
@@ -463,12 +553,15 @@ start_node() {
 # Restore the binaries from the backup directory
 rollback() {
     if [ ! -d "$BACKUP_DIR" ] || [ -z "$(ls -A "$BACKUP_DIR")" ]; then
-        echo -e "${RED}No backup available to roll back to.${NC}"
+        fail "No backup available to roll back to."
         return 1
     fi
-    echo -e "${ORANGE}Restoring previous binaries from ${BACKUP_DIR}...${NC}"
+    info "Restoring previous binaries from ${BACKUP_DIR}"
     install -m 0755 -o root -g root -t "$BIN_DIR" "$BACKUP_DIR"/*
 }
+
+# ---------------------------------------------------------------------------
+step "Version check"
 
 # Determine download architecture
 case "$(uname -m)" in
@@ -476,14 +569,16 @@ case "$(uname -m)" in
     aarch64|arm64)  ARCH="aarch64-linux-gnu" ;;
     armv7l)         ARCH="arm-linux-gnueabihf" ;;
     *)
-        echo -e "${RED}Unsupported architecture: $(uname -m). Exiting.${NC}"
+        fail "Unsupported architecture: $(uname -m)"
         exit 1
         ;;
 esac
 
 # Determine version: from argument, otherwise always the latest stable GitHub release
 # (pre-releases such as testnet builds are skipped by GitHub's "latest")
+VER_SOURCE="requested"
 if [ -z "$VER" ]; then
+    VER_SOURCE="latest release"
     # 1st try: redirect of /releases/latest (no API rate limit)
     latest_url=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/syscoin/syscoin/releases/latest" || true)
     VER=$(echo "$latest_url" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+$' | cut -c2- || true)
@@ -492,57 +587,68 @@ if [ -z "$VER" ]; then
         VER=$(curl -fsSL "https://api.github.com/repos/syscoin/syscoin/releases/latest" \
             | grep -oE '"tag_name": *"v[0-9]+\.[0-9]+\.[0-9]+"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
     fi
-    [ -n "$VER" ] && echo -e "${PURPLE}Latest release on GitHub: ${VER}${NC}"
 fi
 
 if ! [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo -e "${RED}Could not determine the latest version. Pass it manually, e.g.: $0 5.1.1${NC}"
+    fail "Could not determine the latest version. Pass it manually, e.g.: $0 5.1.1"
     exit 1
 fi
 
 # Compare with installed version
 INSTALLED_VER=$(syscoind -version 2> /dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1 || true)
-echo -e "${PURPLE}Installed version: ${INSTALLED_VER:-unknown}, target version: ${VER}${NC}"
+kv "Architecture" "$ARCH"
+kv "Installed" "${INSTALLED_VER:-${DIM}not found${NC}}"
+kv "Target" "${BOLD}${VER}${NC} ${DIM}(${VER_SOURCE})${NC}"
 
 if [ -n "$INSTALLED_VER" ]; then
     if [ "$INSTALLED_VER" = "$VER" ]; then
         if ! confirm_risky "Version ${VER} is already installed. Reinstall anyway?"; then
-            echo -e "${GREEN}Nothing to do.${NC}"
+            ok "Already up to date, nothing to do."
             exit 0
         fi
     elif [ "$(printf '%s\n%s\n' "$INSTALLED_VER" "$VER" | sort -V | tail -n1)" = "$INSTALLED_VER" ]; then
-        echo -e "${RED}Warning: ${VER} is OLDER than the installed version ${INSTALLED_VER} (downgrade).${NC}"
+        warn "${VER} is OLDER than the installed version ${INSTALLED_VER} (downgrade)."
         confirm_risky "Continue with downgrade?" || exit 0
+    else
+        ok "Update available: ${INSTALLED_VER} -> ${VER}"
     fi
 fi
+
+# ---------------------------------------------------------------------------
+step "System packages"
 
 # Optional OS package upgrade; a failure here does not abort the Syscoin update
 if [ "$UPGRADE_SYSTEM" -eq 0 ] && [ "$ASSUME_YES" -eq 0 ]; then
     confirm "Also upgrade the system packages (apt-get upgrade)?" && UPGRADE_SYSTEM=1
 fi
 if [ "$UPGRADE_SYSTEM" -eq 1 ]; then
-    if ! { spin_run "Updating package lists" apt-get -y update > /dev/null \
+    if { spin_run "Updating package lists" apt-get -y update > /dev/null \
         && spin_run "Upgrading system packages" env DEBIAN_FRONTEND=noninteractive apt-get -y upgrade > /dev/null; }; then
-        echo -e "${ORANGE}Package upgrade failed, continuing with the Syscoin update.${NC}"
+        ok "System packages are up to date"
+    else
+        warn "Package upgrade failed, continuing with the Syscoin update."
     fi
+else
+    info "Skipped ${DIM}(use --upgrade-system to include)${NC}"
 fi
 
-echo -e "${PURPLE}Updating Syscoin Masternode to version ${VER}${NC}"
+# ---------------------------------------------------------------------------
+step "Download"
 
 # Download and verify before stopping the node, to keep downtime minimal
 WORK_DIR=$(mktemp -d)
-cd "$WORK_DIR" || { echo -e "${RED}Failed to change to work directory. Exiting.${NC}"; exit 1; }
+cd "$WORK_DIR" || { fail "Failed to change to work directory."; exit 1; }
 
 TARBALL="syscoin-${VER}-${ARCH}.tar.gz"
 BASE_URL="https://github.com/syscoin/syscoin/releases/download/v${VER}"
 
-echo -e "${CYAN}Downloading new version ${VER} (${ARCH})${NC}"
+info "${TARBALL}"
 if ! wget -q --show-progress "${BASE_URL}/${TARBALL}"; then
-    echo -e "${RED}Download failed. Exiting.${NC}"
+    fail "Download failed."
     exit 1
 fi
+ok "Downloaded $(du -h "$TARBALL" | cut -f1)"
 
-echo -e "${CYAN}Verifying checksum...${NC}"
 # Syscoin publishes the checksums as SHA256SUMS.asc (plain list), older/other releases may use SHA256SUMS
 SUMS_FILE=""
 for f in SHA256SUMS.asc SHA256SUMS; do
@@ -554,36 +660,40 @@ done
 
 if [ -n "$SUMS_FILE" ]; then
     if ! grep -E "^[0-9a-fA-F]{64}  \*?${TARBALL}\$" "$SUMS_FILE" > "${TARBALL}.sha256"; then
-        echo -e "${RED}${TARBALL} not listed in ${SUMS_FILE}. Exiting.${NC}"
+        fail "${TARBALL} not listed in ${SUMS_FILE}."
         exit 1
     fi
-    if ! sha256sum -c "${TARBALL}.sha256"; then
-        echo -e "${RED}Checksum verification FAILED. Exiting.${NC}"
+    if ! sha256sum --quiet -c "${TARBALL}.sha256" > /dev/null 2>&1; then
+        fail "Checksum verification FAILED, the download is not trusted."
         exit 1
     fi
-    echo -e "${GREEN}Checksum OK (${SUMS_FILE}).${NC}"
+    ok "Checksum verified ${DIM}(SHA256, ${SUMS_FILE})${NC}"
 else
-    echo -e "${ORANGE}No checksum file found for this release, the download cannot be verified.${NC}"
+    warn "No checksum file found for this release, the download cannot be verified."
     confirm_risky "Continue without verification?" || exit 1
 fi
 
 if ! spin_run "Unpacking" tar xf "$TARBALL"; then
-    echo -e "${RED}Extraction failed. Exiting.${NC}"
+    fail "Extraction failed."
     exit 1
 fi
 
 if ! ls "syscoin-${VER}/bin/"* > /dev/null 2>&1; then
-    echo -e "${RED}No binaries found in archive. Exiting.${NC}"
+    fail "No binaries found in the archive."
     exit 1
 fi
 
-echo -e "${CYAN}Shutting down Syscoincore...${NC}"
+# ---------------------------------------------------------------------------
+step "Stop SyscoinCore"
+
 if ! stop_node; then
-    echo -e "${RED}syscoind did not shut down in time. Exiting without changes.${NC}"
+    fail "syscoind did not shut down in time. Exiting without changes."
     exit 1
 fi
 
-echo -e "${CYAN}Backing up current binaries to ${BACKUP_DIR}...${NC}"
+# ---------------------------------------------------------------------------
+step "Install"
+
 mkdir -p "$BACKUP_DIR"
 for bin in "syscoin-${VER}/bin/"*; do
     old="$BIN_DIR/$(basename "$bin")"
@@ -591,41 +701,49 @@ for bin in "syscoin-${VER}/bin/"*; do
         cp -p "$old" "$BACKUP_DIR/"
     fi
 done
+ok "Backup of current binaries ${DIM}${BACKUP_SHOW}${NC}"
 
-echo -e "${CYAN}Installing...${NC}"
 if ! install -m 0755 -o root -g root -t "$BIN_DIR" "syscoin-${VER}/bin/"*; then
-    echo -e "${RED}Install failed.${NC}"
+    fail "Install failed."
     rollback || true
-    start_node || echo -e "${RED}Failed to restart syscoind.${NC}"
+    start_node || fail "Failed to restart syscoind."
     exit 1
 fi
+ok "Installed Syscoin ${VER} ${DIM}${BIN_DIR}${NC}"
 
 # Sentinel cleanup (Sentinel is no longer used since Syscoin 4)
 rm -rf /root/sentinel
 if current_crontab=$(crontab -l 2> /dev/null) && grep -q sentinel <<< "$current_crontab"; then
-    echo -e "${CYAN}Disabling old Sentinel cron job...${NC}"
     sed '/sentinel/s/^\([^#]\)/#\1/' <<< "$current_crontab" | crontab -
+    ok "Disabled old Sentinel cron job"
 fi
+
+# ---------------------------------------------------------------------------
+step "Start SyscoinCore"
 
 # Ask the user what to do next, unless --action was given
 if [ -z "$ACTION" ]; then
     if [ "$ASSUME_YES" -eq 1 ]; then
         ACTION="start"
     else
-        echo -e "${GREEN}Choose an action before restarting SyscoinCore:${NC}"
-        echo "1) Start SyscoinCore normally (default, recommended)"
-        echo "2) Start with reindex (recommended for data integrity issues)"
-        echo "3) Clean ~/.syscoin (keeps syscoin.conf and wallets) and reboot"
-        echo "4) Cancel (SyscoinCore stays STOPPED, masternode will be offline!)"
+        echo -e "   How should SyscoinCore be started?"
+        echo
+        echo -e "     ${BLUE}1${NC}  Start normally           ${DIM}default, recommended${NC}"
+        echo -e "     ${BLUE}2${NC}  Start with reindex       ${DIM}for data integrity issues${NC}"
+        echo -e "     ${BLUE}3${NC}  Clean data and reboot    ${DIM}keeps syscoin.conf and wallets${NC}"
+        echo -e "     ${BLUE}4${NC}  Cancel                   ${DIM}SyscoinCore stays STOPPED${NC}"
+        echo
         user_choice=""
-        read -rp "Enter your choice [1-4, default 1]: " user_choice || true
+        printf '   %b%s%b Choice %b[1-4, Enter = 1]%b ' "$CYAN" "$I_ASK" "$NC" "$DIM" "$NC"
+        read -r user_choice || true
+        [ -t 0 ] || echo
         case "${user_choice:-1}" in
             1) ACTION="start" ;;
             2) ACTION="reindex" ;;
             3) ACTION="clean" ;;
             4) ACTION="cancel" ;;
             *)
-                echo -e "${RED}Invalid choice. SyscoinCore is NOT running, start it with: syscoind -daemon${NC}"
+                fail "Invalid choice. SyscoinCore is NOT running, start it with: syscoind -daemon"
                 exit 1
                 ;;
         esac
@@ -633,69 +751,90 @@ if [ -z "$ACTION" ]; then
 fi
 
 case "$ACTION" in
-    start)
-        echo -e "${CYAN}Starting Syscoincore...${NC}"
-        ;;
+    start) ;;
     reindex)
-        echo -e "${CYAN}Starting Syscoincore with reindex...${NC}"
+        info "Starting with -reindex, this can take a long time"
         START_ARGS=(-reindex)
         ;;
     clean)
         if [ ! -d "$DATA_DIR" ]; then
-            echo -e "${RED}${DATA_DIR} not found. Exiting.${NC}"
+            fail "${DATA_DIR} not found."
             exit 1
         fi
-        echo -e "${RED}This deletes all blockchain data in ${DATA_DIR} (syscoin.conf, wallet.dat and wallets/ are kept).${NC}"
+        warn "This deletes all blockchain data in ${DATA_DIR} (syscoin.conf, wallet.dat and wallets/ are kept)."
         really=""
         if [ "$ASSUME_YES" -eq 1 ]; then
             really="YES"
         else
-            read -rp "Type YES to continue: " really || true
+            printf '   %b%s%b Type %bYES%b to continue: ' "$CYAN" "$I_ASK" "$NC" "$BOLD" "$NC"
+            read -r really || true
+            [ -t 0 ] || echo
         fi
         if [ "$really" != "YES" ]; then
-            echo -e "${ORANGE}Cleanup cancelled, starting SyscoinCore normally.${NC}"
+            info "Cleanup cancelled, starting SyscoinCore normally."
         else
-            echo -e "${ORANGE}Cleaning ${DATA_DIR}...${NC}"
             find "$DATA_DIR" -mindepth 1 -maxdepth 1 \
                 ! -name 'syscoin.conf' ! -name 'wallet.dat' ! -name 'wallets' \
                 -exec rm -rf {} +
-            echo -e "${GREEN}Cleanup complete. Previous binaries are backed up in ${BACKUP_DIR}. Rebooting system...${NC}"
+            ok "Cleaned ${DATA_DIR}"
+            info "Previous binaries are backed up in ${BACKUP_SHOW}"
+            warn "Rebooting system in 3 seconds..."
             sleep 3
             reboot
             exit 0
         fi
         ;;
     cancel)
-        echo -e "${RED}Cancelled by user. SyscoinCore is NOT running, start it with: syscoind -daemon${NC}"
+        warn "Cancelled. SyscoinCore is NOT running, start it with: syscoind -daemon"
         exit 0
         ;;
 esac
 
 if ! start_node "${START_ARGS[@]}"; then
-    echo -e "${RED}Syscoind failed to start with version ${VER}.${NC}"
+    fail "syscoind failed to start with version ${VER}."
     if confirm "Roll back to the previous version (${INSTALLED_VER:-unknown})?"; then
         if rollback && start_node "${START_ARGS[@]}"; then
-            echo -e "${GREEN}Rolled back and syscoind is running again.${NC}"
+            ok "Rolled back, syscoind is running again with ${INSTALLED_VER:-the previous version}."
         else
-            echo -e "${RED}Rollback failed, please check manually.${NC}"
+            fail "Rollback failed, please check manually."
         fi
     fi
     exit 1
 fi
+ok "syscoind is running"
 
-echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
-syscoin-cli -version || echo -e "${RED}Failed to check Syscoin version.${NC}"
+# ---------------------------------------------------------------------------
+step "Health check"
 
-if blocks=$(spin_run "Waiting for RPC to become available" timeout 300 syscoin-cli -rpcwait getblockcount); then
-    echo -e "${CYAN}Current block height: ${ORANGE}${blocks}${NC}"
-    echo -e "${CYAN}Masternode status:${ORANGE}"
-    syscoin-cli masternode status || echo -e "${RED}Could not fetch masternode status.${NC}"
+BLOCKS="" MN_STATE=""
+if BLOCKS=$(spin_run "Waiting for RPC to become available" timeout 300 syscoin-cli -rpcwait getblockcount); then
+    ok "RPC is available, block height ${BOLD}${BLOCKS}${NC}"
+    MN_STATUS=$(syscoin-cli masternode status 2> /dev/null || true)
+    MN_STATE=$(grep -oE '"(state|status)": *"[^"]*"' <<< "$MN_STATUS" | head -n1 | sed 's/.*: *"//; s/"$//' || true)
+    if [ "$MN_STATE" = "READY" ] || [ "$MN_STATE" = "Ready" ]; then
+        ok "Masternode status ${GREEN}${MN_STATE}${NC}"
+    else
+        warn "Masternode status: ${MN_STATE:-unknown}"
+        if [ -n "$MN_STATUS" ]; then
+            sed "s/^/     /" <<< "$MN_STATUS"
+        fi
+    fi
 else
-    echo -e "${RED}RPC did not become available within 5 minutes, check debug.log.${NC}"
+    fail "RPC did not become available within 5 minutes, check debug.log."
 fi
 
+if [ "$MN_STATE" = "READY" ] || [ "$MN_STATE" = "Ready" ]; then
+    MN_SUMMARY="${GREEN}${MN_STATE}${NC}"
+else
+    MN_SUMMARY="${ORANGE}${MN_STATE:-unknown}${NC}"
+fi
+summary_box "Summary" \
+    "Version=${BOLD}${VER}${NC}${INSTALLED_VER:+ ${DIM}(was ${INSTALLED_VER})${NC}}" \
+    "Block height=${BLOCKS:-unknown}" \
+    "Masternode=${MN_SUMMARY}" \
+    "Backup=${BACKUP_SHOW}" \
+    "Duration=$((SECONDS / 60))m $((SECONDS % 60))s"
+
 echo
-show_coin 1 "${GREEN}\033[1mDone!${NC} Syscoin ${VER} is running." "${PURPLE}Thanks for running a Syscoin masternode!${NC}"
-echo -e "${CYAN}Previous binaries are backed up in ${BACKUP_DIR}${NC}"
-echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
-echo -e "${PURPLE}Thanks!${NC}"
+show_coin 1 "${GREEN}${BOLD}Done!${NC} Syscoin ${VER} is running." "${PURPLE}Thanks for running a Syscoin masternode!${NC}"
+echo -e "${DIM}Liked it? Syscoin tip jar:${NC} ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
