@@ -389,6 +389,10 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Start on a clean screen (old output stays reachable in the scrollback)
+if [ "$ANIMATE" -eq 1 ]; then
+    printf '\033[H\033[2J'
+fi
 show_coin 2 "${CYAN}\033[1mS Y S C O I N${NC}" "${PURPLE}Masternode updater${NC}"
 
 BIN_DIR="/usr/local/bin"
