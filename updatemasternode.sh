@@ -176,10 +176,11 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 # awk program that renders the animation frames with half-block characters
-# (2 square pixels per character cell): a spinning coin in the style of the
-# Syscoin logo (white face with the blue "S", dark inner ring, glossy blue rim,
-# glint, reeded edge) in front of a twinkling grid of grey squares that fades
-# out towards the top. The "S" is an embedded coverage mask of the logo.
+# (2 square pixels per character cell): a spinning 8-bit style coin in the colours
+# of the Syscoin logo (white face with the blue "S", dark inner ring, blue rim,
+# black outline, dithered shading, sparkle) in front of a twinkling grid of grey
+# squares that fades out towards the top. The "S" is an embedded coverage mask of
+# the logo, drawn on a chunky sprite grid of 2x2 pixels (PX).
 # Input variables: D = coin diameter (pixels), N = frames per rotation,
 # ROUNDS = rotations, BW = width in columns, T1/T2 = text lines,
 # TC = 1 for truecolor (24-bit), 0 for the 256-colour fallback.
@@ -191,11 +192,6 @@ function clamp(x) { return x < 0 ? 0 : (x > 1 ? 1 : x) }
 # Colours are handled as "r;g;b" strings
 function rgb(r, g, b) { return int(clamp(r / 255) * 255 + 0.5) ";" int(clamp(g / 255) * 255 + 0.5) ";" int(clamp(b / 255) * 255 + 0.5) }
 function hex(h) { return rgb(H2D[substr(h, 1, 2)], H2D[substr(h, 3, 2)], H2D[substr(h, 5, 2)]) }
-# Mix colours a and b (t = 0..1 towards b), then multiply by brightness k
-function mix(a, b, t, k,   p, q) {
-    split(a, p, ";"); split(b, q, ";")
-    return rgb((p[1] + (q[1] - p[1]) * t) * k, (p[2] + (q[2] - p[2]) * t) * k, (p[3] + (q[3] - p[3]) * t) * k)
-}
 # Coverage (0..1) of the Syscoin "S" at face-on point (x,y), with (x,y) scaled so
 # that the white face has radius 1. Bilinear interpolation of the logo mask.
 function s_cover(x, y,   fx, fy, ix, iy, dx, dy) {
@@ -206,24 +202,29 @@ function s_cover(x, y,   fx, fy, ix, iy, dx, dy) {
     return ((SM[iy, ix] * (1 - dx) + SM[iy, ix + 1] * dx) * (1 - dy) \
         + (SM[iy + 1, ix] * (1 - dx) + SM[iy + 1, ix + 1] * dx) * dy) / 9
 }
-# Colour of the coin face at face-on point (x,y): white face with the blue "S",
-# a dark inner ring and a glossy blue outer rim, like the Syscoin logo
-function face(x, y,   r, t, c, cov, sheen) {
+# 8-bit style colour of the coin face at face-on point (x,y): flat palette colours,
+# hard edges and checkerboard dithering instead of gradients. White face with the
+# blue "S", dark inner ring and a blue rim with a highlight, like the Syscoin logo.
+# LX/LY = logical pixel (for the dither pattern), SHADE shifts the shading when the
+# coin turns away or shows its back.
+function face(x, y,   r, t, dith) {
     r = sqrt(x * x + y * y)
-    t = clamp((x * 0.6 + y * 0.8 + 1) / 2)               # light from the top left
+    t = x * 0.6 + y * 0.8 + SHADE                          # light from the top left
+    dith = (LX + LY) % 2
     if (r > RIM_R) {
-        c = mix(RIM1, RIM2, t, LIGHT)                     # glossy blue rim
-        if (r > 0.97) c = mix(c, RIM2, 0.5, 1)            # darker outer edge
-    } else if (r > RING_R) {
-        c = mix(RING1, RING2, t, LIGHT)                   # dark inner ring
-    } else {
-        c = mix(FACE1, FACE2, t, LIGHT)                   # white face
-        cov = s_cover(x / RING_R, y / RING_R)
-        if (cov > 0) c = mix(c, mix(SYM1, SYM2, (y + 1) / 2, LIGHT), cov, 1)
+        if (t < -0.55) return RIM_HI
+        if (t > 0.55) return RIM_LO
+        return RIM
     }
-    # glint sweeping over the face while the coin turns
-    sheen = exp(-(((x - y * 0.6) - GLINT) / 0.16) ^ 2) * 0.35 * ac
-    return mix(c, WHITE, sheen, 1)
+    if (r > RING_R) return RING
+    if (s_cover(x / RING_R, y / RING_R) >= 0.5) {          # the "S" in three flat bands
+        if (y < -0.4) return (y < -0.5 || dith) ? S_HI : S_MID
+        if (y > 0.45) return (y > 0.55 || dith) ? S_LO : S_MID
+        return S_MID
+    }
+    if (t > 0.75) return FACE_LO                          # shaded part of the face
+    if (t > 0.45) return dith ? FACE_LO : FACE_HI         # dithered transition
+    return FACE_HI
 }
 # Colour of coin pixel (u,v), both in [-1,1], for the current angle; "" = transparent.
 # The coin turns around its vertical axis: the face towards the viewer is shifted
@@ -233,11 +234,34 @@ function coin(u, v,   half, xf) {
     if (v * v > 1) return ""
     half = sqrt(1 - v * v)
     xf = (cs > 0 ? 1 : -1) * T / 2 * sn                   # centre of the visible face
-    if (ac > 0.04 && ((u - xf) / cs) ^ 2 + v * v <= 1)
+    if (ac > 0.15 && ((u - xf) / cs) ^ 2 + v * v <= 1)
         return face((u - xf) / cs, v)                     # face-on x, mirrored on the back
-    if (abs(u) <= ac * half + T / 2 * abs(sn))            # reeded edge
-        return mix(EDGE1, EDGE2, abs(v), (int((v + 1) * D / 2) % 2 ? 0.75 : 1) * (0.55 + 0.45 * abs(sn)))
+    if (abs(u) <= ac * half + T / 2 * abs(sn))            # striped edge
+        return LY % 2 ? EDGE_LO : EDGE_HI
     return ""
+}
+# Render the coin for the current angle on the logical (chunky) pixel grid, then
+# add a black outline around it and a sparkle on the frames around face-on.
+function render_coin(f,   lx, ly, c, sx, sy, big) {
+    delete CL
+    for (ly = 0; ly < DL; ly++) for (lx = 0; lx < DL; lx++) {
+        LX = lx; LY = ly
+        c = coin((lx + 0.5) / DL * 2 - 1, (ly + 0.5) / DL * 2 - 1)
+        if (c != "") CL[lx, ly] = c
+    }
+    for (ly = -1; ly <= DL; ly++) for (lx = -1; lx <= DL; lx++)
+        if (!((lx, ly) in CL) && (((lx - 1, ly) in CL && CL[lx - 1, ly] != OUTLINE) \
+            || ((lx + 1, ly) in CL && CL[lx + 1, ly] != OUTLINE) || ((lx, ly - 1) in CL && CL[lx, ly - 1] != OUTLINE) \
+            || ((lx, ly + 1) in CL && CL[lx, ly + 1] != OUTLINE)))
+            CL[lx, ly] = OUTLINE
+    f = f % N
+    if (f == 0 || f == 1 || f == N - 1) {
+        big = (f == 0)
+        sx = DL - 1; sy = 0                               # top right, just outside the coin
+        CL[sx, sy] = SPARK
+        CL[sx - 1, sy] = CL[sx + 1, sy] = CL[sx, sy - 1] = CL[sx, sy + 1] = big ? SPARK : SPARK2
+        if (big) CL[sx - 2, sy] = CL[sx + 2, sy] = CL[sx, sy - 2] = CL[sx, sy + 2] = SPARK2
+    }
 }
 # Random grey level for a background square in pixel row y: dark at the top,
 # fading in, with a few bright squares
@@ -248,21 +272,10 @@ function level(y,   f, g) {
     return rgb(g, g, g)
 }
 # Colour of pixel (x,y) of the whole picture
-function pixel(x, y,   c, cx, dx, dy, d, gl) {
-    cx = x - CX
-    if (cx >= 0 && cx < D && y >= CY && y < CY + D) {
-        c = coin((cx + 0.5) / D * 2 - 1, (y - CY + 0.5) / D * 2 - 1)
-        if (c != "") return c
-    }
-    c = (x % 2 || y % 2) ? GAP : L[x, y]                  # dark seams between the squares
-    # soft blue glow around the coin
-    dx = (x + 0.5 - CX - D / 2) / (D / 2); dy = (y + 0.5 - CY - D / 2) / (D / 2)
-    d = sqrt(dx * dx / (0.15 + 0.85 * ac) ^ 2 + dy * dy) - 1
-    if (TC && d < 0.7) {                                  # (truecolor only)
-        gl = (1 - d / 0.7) ^ 2 * (x % 2 || y % 2 ? 0.25 : 0.55)
-        c = mix(c, GLOW, gl, 1)
-    }
-    return c
+function pixel(x, y,   lx, ly) {
+    lx = int((x - CX + PX * 3) / PX) - 3; ly = int((y - CY + PX * 3) / PX) - 3
+    if ((lx, ly) in CL) return CL[lx, ly]
+    return (x % 2 || y % 2) ? GAP : L[x, y]               # dark seams between the squares
 }
 # 256-colour index for "r;g;b" (for terminals without truecolor): greys map to the
 # grey ramp, other colours to the nearest of a fixed set of blues so the coin
@@ -296,10 +309,12 @@ function cell(t, b,   codes) {
     out = out (codes != "" ? "\033[" codes "m" : "") "▀"
 }
 function visible_len(s) { gsub(/\033\[[0-9;]*m/, "", s); return length(s) }
-function frame(a,   x, y, row, txt) {
+# Set the rotation angle for the next frame
+function set_angle(a) {
     cs = cos(a); sn = sin(a); ac = abs(cs)
-    LIGHT = (0.55 + 0.45 * ac) * (cs > 0 ? 1 : 0.85)    # darker as the coin turns away, back a bit darker
-    GLINT = -1.8 + 3.6 * ((a / PI) % 1)                   # position of the glint, sweeps each half turn
+    SHADE = (1 - ac) * 0.6 + (cs < 0 ? 0.35 : 0)          # darker as the coin turns away, back a bit darker
+}
+function frame(   x, y, row, txt) {
     for (row = 0; row < ROWS; row++) {
         out = ""; curfg = ""; curbg = ""
         txt = (row == TR1) ? T1 : ((row == TR2) ? T2 : "")
@@ -328,13 +343,15 @@ BEGIN {
     NPAL = split("16 17 18 19 20 21 25 26 27 32 33 39 68 69 75 111 153 231 255 254 253 252 250 247 233 235 237", PAL, " ")
     split("000000 00005f 000087 0000af 0000d7 0000ff 005faf 005fd7 005fff 0087d7 0087ff 00afff 5f87d7 5f87ff 5fafff 87afff afd7ff ffffff eeeeee e4e4e4 dadada d0d0d0 bcbcbc 9e9e9e 121212 262626 3a3a3a", PH6, " ")
     for (i = 1; i <= NPAL; i++) PALRGB[i] = hex(PH6[i])
-    # palette of the Syscoin logo: white face, blue "S" (light to deep blue),
-    # dark inner ring, glossy blue rim and edge
-    FACE1 = hex("fbfbfd"); FACE2 = hex("d5d8e0"); SYM1 = hex("38b4fa"); SYM2 = hex("1266e0")
-    RING1 = hex("3a3f58"); RING2 = hex("12142a"); RIM1 = hex("4f6cf5"); RIM2 = hex("111c96")
-    EDGE1 = hex("5a74f5"); EDGE2 = hex("101a80"); WHITE = hex("ffffff"); GLOW = hex("2f6bff")
+    # 8-bit palette in the colours of the Syscoin logo (all exact xterm-256 colours,
+    # so truecolor and 256-colour terminals look the same)
+    FACE_HI = hex("eeeeee"); FACE_LO = hex("bcbcbc"); RING = hex("262626"); OUTLINE = hex("000000")
+    S_HI = hex("5fafff"); S_MID = hex("0087ff"); S_LO = hex("005fd7")
+    RIM_HI = hex("5f87ff"); RIM = hex("005fff"); RIM_LO = hex("0000af")
+    EDGE_HI = hex("005fd7"); EDGE_LO = hex("0000af"); SPARK = hex("ffffff"); SPARK2 = hex("5fafff")
     GAP = hex("0b0b0f"); PANEL = hex("000000")
-    T = 0.16                                              # coin thickness
+    T = 0.20                                              # coin thickness
+    PX = PX ? PX : 2; DL = int(D / PX)                    # size of one sprite pixel (chunky 8-bit look), sprite size
     RING_R = 0.83; RIM_R = 0.90                           # radius of the dark ring and the blue rim
     # Syscoin "S" logo mask: coverage 0-9 per cell, SN x SN cells over the white face
     S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
@@ -397,7 +414,9 @@ BEGIN {
     gsub(/\033\[0m/, "\033[0m\033[" sgr(4, PANEL) "m", T2)
     for (y = 0; y < PH; y += 2) for (x = 0; x < BW; x += 2) L[x, y] = level(y)
     for (f = 0; f <= ROUNDS * N; f++) {
-        frame(2 * PI * (f % N) / N)
+        set_angle(2 * PI * (f % N) / N)
+        render_coin(f)
+        frame()
         # let some squares twinkle
         for (y = 0; y < PH; y += 2) for (x = 0; x < BW; x += 2) if (rand() < 0.08) L[x, y] = level(y)
     }
@@ -405,7 +424,8 @@ BEGIN {
 AWK
 
 COIN_SIZE=32
-COIN_FRAMES=24
+COIN_FRAMES=8                     # frames per rotation, stepped like an 8-bit sprite
+COIN_DELAY=0.09                   # seconds per frame
 COIN_ROWS=$((COIN_SIZE / 2 + 2))
 
 # Show the spinning coin in front of the twinkling background for a number of
@@ -436,11 +456,11 @@ show_coin() {
         printf '%s\n' "${frames[@]:k*COIN_ROWS:COIN_ROWS}"
         printf '\033[%dA' "$COIN_ROWS"
         if [ -t 0 ]; then
-            if read -rsn1 -t 0.05 key 2> /dev/null; then
+            if read -rsn1 -t "$COIN_DELAY" key 2> /dev/null; then
                 break
             fi
         else
-            sleep 0.05
+            sleep "$COIN_DELAY"
         fi
     done
     # Final frame: coin facing forward
@@ -532,7 +552,7 @@ fi
 if [ "$ANIMATE" -eq 1 ]; then
     printf '\033[H\033[2J'
 fi
-show_coin 2 "${CYAN}${BOLD}S Y S C O I N${NC}" "${PURPLE}Masternode updater${NC}"
+show_coin 3 "${CYAN}${BOLD}S Y S C O I N${NC}" "${PURPLE}Masternode updater${NC}"
 
 BIN_DIR="/usr/local/bin"
 DATA_DIR="$HOME/.syscoin"
@@ -889,5 +909,5 @@ summary_box "Summary" \
     "Duration=$((SECONDS / 60))m $((SECONDS % 60))s"
 
 echo
-show_coin 1 "${GREEN}${BOLD}Done!${NC} Syscoin ${VER} is running." "${PURPLE}Thanks for running a Syscoin masternode!${NC}"
+show_coin 2 "${GREEN}${BOLD}Done!${NC} Syscoin ${VER} is running." "${PURPLE}Thanks for running a Syscoin masternode!${NC}"
 echo -e "${DIM}Liked it? Syscoin tip jar:${NC} ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
