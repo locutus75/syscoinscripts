@@ -176,11 +176,11 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 # awk program that renders the animation frames with half-block characters
-# (2 square pixels per character cell): a spinning 8-bit style coin in the colours
-# of the Syscoin logo (white face with the blue "S", dark inner ring, blue rim,
-# black outline, dithered shading, sparkle) in front of a twinkling grid of grey
+# (2 square pixels per character cell): a spinning 16-bit style pixel-art coin in
+# the colours of the Syscoin logo (white face with the blue "S", dark inner ring,
+# blue rim, dithered shading, sparkle) in front of a twinkling grid of grey
 # squares that fades out towards the top. The "S" is an embedded coverage mask of
-# the logo, drawn on a chunky sprite grid of 2x2 pixels (PX).
+# the logo.
 # Input variables: D = coin diameter (pixels), N = frames per rotation,
 # ROUNDS = rotations, BW = width in columns, T1/T2 = text lines,
 # TC = 1 for truecolor (24-bit), 0 for the 256-colour fallback.
@@ -202,7 +202,7 @@ function s_cover(x, y,   fx, fy, ix, iy, dx, dy) {
     return ((SM[iy, ix] * (1 - dx) + SM[iy, ix + 1] * dx) * (1 - dy) \
         + (SM[iy + 1, ix] * (1 - dx) + SM[iy + 1, ix + 1] * dx) * dy) / 9
 }
-# 8-bit style colour of the coin face at face-on point (x,y): flat palette colours,
+# Pixel-art colour of the coin face at face-on point (x,y): flat palette colours,
 # hard edges and checkerboard dithering instead of gradients. White face with the
 # blue "S", dark inner ring and a blue rim with a highlight, like the Syscoin logo.
 # LX/LY = logical pixel (for the dither pattern), SHADE shifts the shading when the
@@ -240,8 +240,8 @@ function coin(u, v,   half, xf) {
         return LY % 2 ? EDGE_LO : EDGE_HI
     return ""
 }
-# Render the coin for the current angle on the logical (chunky) pixel grid, then
-# add a black outline around it and a sparkle on the frames around face-on.
+# Render the coin for the current angle on the sprite pixel grid, and add a
+# sparkle on the frames around face-on.
 function render_coin(f,   lx, ly, c, sx, sy, big) {
     delete CL
     for (ly = 0; ly < DL; ly++) for (lx = 0; lx < DL; lx++) {
@@ -249,11 +249,6 @@ function render_coin(f,   lx, ly, c, sx, sy, big) {
         c = coin((lx + 0.5) / DL * 2 - 1, (ly + 0.5) / DL * 2 - 1)
         if (c != "") CL[lx, ly] = c
     }
-    for (ly = -1; ly <= DL; ly++) for (lx = -1; lx <= DL; lx++)
-        if (!((lx, ly) in CL) && (((lx - 1, ly) in CL && CL[lx - 1, ly] != OUTLINE) \
-            || ((lx + 1, ly) in CL && CL[lx + 1, ly] != OUTLINE) || ((lx, ly - 1) in CL && CL[lx, ly - 1] != OUTLINE) \
-            || ((lx, ly + 1) in CL && CL[lx, ly + 1] != OUTLINE)))
-            CL[lx, ly] = OUTLINE
     f = f % N
     if (f == 0 || f == 1 || f == N - 1) {
         big = (f == 0)
@@ -343,15 +338,15 @@ BEGIN {
     NPAL = split("16 17 18 19 20 21 25 26 27 32 33 39 68 69 75 111 153 231 255 254 253 252 250 247 233 235 237", PAL, " ")
     split("000000 00005f 000087 0000af 0000d7 0000ff 005faf 005fd7 005fff 0087d7 0087ff 00afff 5f87d7 5f87ff 5fafff 87afff afd7ff ffffff eeeeee e4e4e4 dadada d0d0d0 bcbcbc 9e9e9e 121212 262626 3a3a3a", PH6, " ")
     for (i = 1; i <= NPAL; i++) PALRGB[i] = hex(PH6[i])
-    # 8-bit palette in the colours of the Syscoin logo (all exact xterm-256 colours,
+    # pixel-art palette in the colours of the Syscoin logo (all exact xterm-256 colours,
     # so truecolor and 256-colour terminals look the same)
-    FACE_HI = hex("eeeeee"); FACE_LO = hex("bcbcbc"); RING = hex("262626"); OUTLINE = hex("000000")
+    FACE_HI = hex("eeeeee"); FACE_LO = hex("bcbcbc"); RING = hex("262626")
     S_HI = hex("5fafff"); S_MID = hex("0087ff"); S_LO = hex("005fd7")
     RIM_HI = hex("5f87ff"); RIM = hex("005fff"); RIM_LO = hex("0000af")
     EDGE_HI = hex("005fd7"); EDGE_LO = hex("0000af"); SPARK = hex("ffffff"); SPARK2 = hex("5fafff")
     GAP = hex("0b0b0f"); PANEL = hex("000000")
     T = 0.20                                              # coin thickness
-    PX = PX ? PX : 2; DL = int(D / PX)                    # size of one sprite pixel (chunky 8-bit look), sprite size
+    PX = PX ? PX : 1; DL = int(D / PX)                    # size of one sprite pixel, sprite size
     RING_R = 0.83; RIM_R = 0.90                           # radius of the dark ring and the blue rim
     # Syscoin "S" logo mask: coverage 0-9 per cell, SN x SN cells over the white face
     S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
@@ -424,7 +419,7 @@ BEGIN {
 AWK
 
 COIN_SIZE=32
-COIN_FRAMES=8                     # frames per rotation, stepped like an 8-bit sprite
+COIN_FRAMES=8                     # frames per rotation, stepped like a console sprite
 COIN_DELAY=0.09                   # seconds per frame
 COIN_ROWS=$((COIN_SIZE / 2 + 2))
 
