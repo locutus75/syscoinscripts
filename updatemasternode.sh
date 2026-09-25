@@ -176,9 +176,10 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 # awk program that renders the animation frames with half-block characters
-# (2 square pixels per character cell): a spinning coin (blue-indigo gradient,
-# metallic rim, white "S" with shadow, glint, reeded edge) in front of a
-# twinkling grid of grey squares that fades out towards the top.
+# (2 square pixels per character cell): a spinning coin in the style of the
+# Syscoin logo (white face with the blue "S", dark inner ring, glossy blue rim,
+# glint, reeded edge) in front of a twinkling grid of grey squares that fades
+# out towards the top. The "S" is an embedded coverage mask of the logo.
 # Input variables: D = coin diameter (pixels), N = frames per rotation,
 # ROUNDS = rotations, BW = width in columns, T1/T2 = text lines,
 # TC = 1 for truecolor (24-bit), 0 for the 256-colour fallback.
@@ -195,34 +196,33 @@ function mix(a, b, t, k,   p, q) {
     split(a, p, ";"); split(b, q, ";")
     return rgb((p[1] + (q[1] - p[1]) * t) * k, (p[2] + (q[2] - p[2]) * t) * k, (p[3] + (q[3] - p[3]) * t) * k)
 }
-# True when face-on point (x,y) lies on the "S": two arcs stacked on top of each other
-function on_s(x, y,   d, t) {
-    d = sqrt(x * x + (y + SR) ^ 2)                        # upper arc, centre (0,-SR)
-    if (abs(d - SR) <= SW) {
-        t = atan2(y + SR, x) * 180 / PI
-        if (t >= 90 || t <= -35) return 1
-    }
-    d = sqrt(x * x + (y - SR) ^ 2)                        # lower arc, centre (0,SR)
-    if (abs(d - SR) <= SW) {
-        t = atan2(y - SR, x) * 180 / PI
-        if (t >= -90 && t <= 145) return 1
-    }
-    return 0
+# Coverage (0..1) of the Syscoin "S" at face-on point (x,y), with (x,y) scaled so
+# that the white face has radius 1. Bilinear interpolation of the logo mask.
+function s_cover(x, y,   fx, fy, ix, iy, dx, dy) {
+    fx = (x + 1) / 2 * SN - 0.5; fy = (y + 1) / 2 * SN - 0.5
+    ix = int(fx); iy = int(fy)
+    if (fx < 0 || fy < 0 || ix >= SN - 1 || iy >= SN - 1) return 0
+    dx = fx - ix; dy = fy - iy
+    return ((SM[iy, ix] * (1 - dx) + SM[iy, ix + 1] * dx) * (1 - dy) \
+        + (SM[iy + 1, ix] * (1 - dx) + SM[iy + 1, ix + 1] * dx) * dy) / 9
 }
-# Colour of the coin face at face-on point (x,y)
-function face(x, y,   r, t, c, sheen) {
+# Colour of the coin face at face-on point (x,y): white face with the blue "S",
+# a dark inner ring and a glossy blue outer rim, like the Syscoin logo
+function face(x, y,   r, t, c, cov, sheen) {
     r = sqrt(x * x + y * y)
     t = clamp((x * 0.6 + y * 0.8 + 1) / 2)               # light from the top left
-    if (r > 0.87) return mix(RIM1, RIM2, t, LIGHT)       # bevelled metal rim
-    if (on_s(x, y)) {
-        c = mix(SYM1, SYM2, (y + 1) / 2, 1)
+    if (r > RIM_R) {
+        c = mix(RIM1, RIM2, t, LIGHT)                     # glossy blue rim
+        if (r > 0.97) c = mix(c, RIM2, 0.5, 1)            # darker outer edge
+    } else if (r > RING_R) {
+        c = mix(RING1, RING2, t, LIGHT)                   # dark inner ring
     } else {
-        c = mix(FACE1, FACE2, t, LIGHT)
-        if (r > 0.80) c = mix(c, GROOVE, 0.6, 1)         # engraved ring inside the rim
-        else if (on_s(x - 0.07, y - 0.09)) c = mix(c, SHADOW, 0.55, 1)   # drop shadow of the S
+        c = mix(FACE1, FACE2, t, LIGHT)                   # white face
+        cov = s_cover(x / RING_R, y / RING_R)
+        if (cov > 0) c = mix(c, mix(SYM1, SYM2, (y + 1) / 2, LIGHT), cov, 1)
     }
     # glint sweeping over the face while the coin turns
-    sheen = exp(-(((x - y * 0.6) - GLINT) / 0.16) ^ 2) * 0.45 * ac
+    sheen = exp(-(((x - y * 0.6) - GLINT) / 0.16) ^ 2) * 0.35 * ac
     return mix(c, WHITE, sheen, 1)
 }
 # Colour of coin pixel (u,v), both in [-1,1], for the current angle; "" = transparent.
@@ -324,16 +324,69 @@ BEGIN {
     srand()
     PI = atan2(0, -1)
     for (i = 0; i < 256; i++) H2D[sprintf("%02x", i)] = i
-    # 256-colour fallback palette: blues from navy to white, plus a few dark greys
-    NPAL = split("16 17 18 19 20 21 25 26 27 32 33 39 68 69 75 111 153 195 231 233 235 237", PAL, " ")
-    split("000000 00005f 000087 0000af 0000d7 0000ff 005faf 005fd7 005fff 0087d7 0087ff 00afff 5f87d7 5f87ff 5fafff 87afff afd7ff d7ffff ffffff 121212 262626 3a3a3a", PH6, " ")
+    # 256-colour fallback palette: blues from navy to light blue, light greys for the face, dark greys
+    NPAL = split("16 17 18 19 20 21 25 26 27 32 33 39 68 69 75 111 153 231 255 254 253 252 250 247 233 235 237", PAL, " ")
+    split("000000 00005f 000087 0000af 0000d7 0000ff 005faf 005fd7 005fff 0087d7 0087ff 00afff 5f87d7 5f87ff 5fafff 87afff afd7ff ffffff eeeeee e4e4e4 dadada d0d0d0 bcbcbc 9e9e9e 121212 262626 3a3a3a", PH6, " ")
     for (i = 1; i <= NPAL; i++) PALRGB[i] = hex(PH6[i])
-    # palette: electric blue to deep indigo, white "S", metallic rim and edge
-    FACE1 = hex("3d8bff"); FACE2 = hex("1f2fb8"); GROOVE = hex("0c1a6b"); SHADOW = hex("0a1250")
-    RIM1 = hex("d8e8ff"); RIM2 = hex("2b4bb8"); SYM1 = hex("ffffff"); SYM2 = hex("cfe0ff")
-    EDGE1 = hex("8fb4ff"); EDGE2 = hex("1b2f86"); WHITE = hex("ffffff"); GLOW = hex("2f6bff")
+    # palette of the Syscoin logo: white face, blue "S" (light to deep blue),
+    # dark inner ring, glossy blue rim and edge
+    FACE1 = hex("fbfbfd"); FACE2 = hex("d5d8e0"); SYM1 = hex("38b4fa"); SYM2 = hex("1266e0")
+    RING1 = hex("3a3f58"); RING2 = hex("12142a"); RIM1 = hex("4f6cf5"); RIM2 = hex("111c96")
+    EDGE1 = hex("5a74f5"); EDGE2 = hex("101a80"); WHITE = hex("ffffff"); GLOW = hex("2f6bff")
     GAP = hex("0b0b0f"); PANEL = hex("000000")
-    T = 0.16; SR = 0.30; SW = 0.12                        # T = coin thickness
+    T = 0.16                                              # coin thickness
+    RING_R = 0.83; RIM_R = 0.90                           # radius of the dark ring and the blue rim
+    # Syscoin "S" logo mask: coverage 0-9 per cell, SN x SN cells over the white face
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000112222210000000000000000000"
+    S_MASK = S_MASK "000000000000000001468999999998641000000000000000"
+    S_MASK = S_MASK "000000000000001479999999999999999741000000000000"
+    S_MASK = S_MASK "000000000000048999999999988778899998400000000000"
+    S_MASK = S_MASK "000000000003899999999642000000001246882000000000"
+    S_MASK = S_MASK "000000000049999999841000000000000000014300000000"
+    S_MASK = S_MASK "000000000699999995100000000000000000000000000000"
+    S_MASK = S_MASK "000000006999999940000000000000000000000000000000"
+    S_MASK = S_MASK "000000059999999500000000000000000000000000000000"
+    S_MASK = S_MASK "000000299999998000000000002221000000000000000000"
+    S_MASK = S_MASK "000000799999995000000000489999964100000000000000"
+    S_MASK = S_MASK "000003999999992000000003999999999962000000000000"
+    S_MASK = S_MASK "000005999999991000000006999999999999610000000000"
+    S_MASK = S_MASK "000008999999992000000005999999999999993000000000"
+    S_MASK = S_MASK "000019999999994000000001899999999999999500000000"
+    S_MASK = S_MASK "000019999999997000000000179999999999999950000000"
+    S_MASK = S_MASK "000019999999999300000000005999999999999992000000"
+    S_MASK = S_MASK "000009999999999910000000000159999999999998000000"
+    S_MASK = S_MASK "000006999999999981000000000003999999999999300000"
+    S_MASK = S_MASK "000004999999999998300000000000189999999999600000"
+    S_MASK = S_MASK "000000899999999999951000000000029999999999900000"
+    S_MASK = S_MASK "000000399999999999999400000000003999999999910000"
+    S_MASK = S_MASK "000000059999999999999971000000000799999999910000"
+    S_MASK = S_MASK "000000005999999999999998100000000499999999910000"
+    S_MASK = S_MASK "000000000499999999999999500000000299999999800000"
+    S_MASK = S_MASK "000000000017999999999999700000000199999999600000"
+    S_MASK = S_MASK "000000000000269999999999400000000299999999300000"
+    S_MASK = S_MASK "000000000000001479999984000000000599999998000000"
+    S_MASK = S_MASK "000000000000000000222200000000000899999993000000"
+    S_MASK = S_MASK "000000000000000000000000000000005999999960000000"
+    S_MASK = S_MASK "000000000000000000000000000000049999999700000000"
+    S_MASK = S_MASK "000000000000000000000000000001699999996000000000"
+    S_MASK = S_MASK "000000003410000000000000000159999999950000000000"
+    S_MASK = S_MASK "000000000388642100000000247999999998300000000000"
+    S_MASK = S_MASK "000000000004999998877889999999999950000000000000"
+    S_MASK = S_MASK "000000000000157999999999999999974100000000000000"
+    S_MASK = S_MASK "000000000000000146899999999864100000000000000000"
+    S_MASK = S_MASK "000000000000000000012333221000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
+    SN = 48
+    for (i = 0; i < SN * SN; i++) SM[int(i / SN), i % SN] = substr(S_MASK, i + 1, 1) + 0
     ROWS = D / 2 + 2; PH = 2 * ROWS
     CX = 2; CY = 2                                        # coin position in pixels
     TX = CX + D + 3; TW = BW - TX - 1                     # text panel columns
