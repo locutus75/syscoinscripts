@@ -177,8 +177,8 @@ trap 'exit 130' INT TERM
 
 # awk program that renders the animation frames with half-block characters
 # (2 square pixels per character cell): a spinning 16-bit style pixel-art coin in
-# the colours of the Syscoin logo (white face with the blue "S", dark inner ring,
-# blue rim, dithered shading, sparkle) in front of a twinkling grid of grey
+# the colours of the Syscoin logo (white face with the blue "S", blue rim,
+# dithered shading, sparkle) in front of a twinkling grid of grey
 # squares that fades out towards the top. The "S" is an embedded coverage mask of
 # the logo.
 # Input variables: D = coin diameter (pixels), N = frames per rotation,
@@ -204,7 +204,7 @@ function s_cover(x, y,   fx, fy, ix, iy, dx, dy) {
 }
 # Pixel-art colour of the coin face at face-on point (x,y): flat palette colours,
 # hard edges and checkerboard dithering instead of gradients. White face with the
-# blue "S", dark inner ring and a blue rim with a highlight, like the Syscoin logo.
+# blue "S" and a blue rim with a highlight, like the Syscoin logo.
 # LX/LY = logical pixel (for the dither pattern), SHADE shifts the shading when the
 # coin turns away or shows its back.
 function face(x, y,   r, t, dith) {
@@ -216,7 +216,6 @@ function face(x, y,   r, t, dith) {
         if (t > 0.55) return RIM_LO
         return RIM
     }
-    if (r > RING_R) return RING
     if (s_cover(x / RING_R, y / RING_R) >= 0.5) {          # the "S" in three flat bands
         if (y < -0.4) return (y < -0.5 || dith) ? S_HI : S_MID
         if (y > 0.45) return (y > 0.55 || dith) ? S_LO : S_MID
@@ -340,14 +339,14 @@ BEGIN {
     for (i = 1; i <= NPAL; i++) PALRGB[i] = hex(PH6[i])
     # pixel-art palette in the colours of the Syscoin logo (all exact xterm-256 colours,
     # so truecolor and 256-colour terminals look the same)
-    FACE_HI = hex("eeeeee"); FACE_LO = hex("bcbcbc"); RING = hex("262626")
+    FACE_HI = hex("eeeeee"); FACE_LO = hex("bcbcbc"); 
     S_HI = hex("5fafff"); S_MID = hex("0087ff"); S_LO = hex("005fd7")
     RIM_HI = hex("5f87ff"); RIM = hex("005fff"); RIM_LO = hex("0000af")
     EDGE_HI = hex("005fd7"); EDGE_LO = hex("0000af"); SPARK = hex("ffffff"); SPARK2 = hex("5fafff")
     GAP = hex("0b0b0f"); PANEL = hex("000000")
     T = 0.20                                              # coin thickness
     PX = PX ? PX : 1; DL = int(D / PX)                    # size of one sprite pixel, sprite size
-    RING_R = 0.83; RIM_R = 0.90                           # radius of the dark ring and the blue rim
+    RING_R = 0.83; RIM_R = 0.90                           # radius the "S" is scaled to, radius of the blue rim
     # Syscoin "S" logo mask: coverage 0-9 per cell, SN x SN cells over the white face
     S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
     S_MASK = S_MASK "000000000000000000000000000000000000000000000000"
@@ -419,8 +418,8 @@ BEGIN {
 AWK
 
 COIN_SIZE=32
-COIN_FRAMES=8                     # frames per rotation, stepped like a console sprite
-COIN_DELAY=0.09                   # seconds per frame
+COIN_FRAMES=12                    # frames per rotation, stepped like a console sprite
+COIN_DELAY=0.07                   # seconds per frame
 COIN_ROWS=$((COIN_SIZE / 2 + 2))
 
 # Show the spinning coin in front of the twinkling background for a number of
