@@ -26,6 +26,7 @@ Options:
                         and install without checksum verification
   -u, --upgrade-system  Also run apt-get upgrade (otherwise asked interactively)
   -n, --no-animation    Disable the spinning coin and spinners
+  -t, --truecolor       Use 24-bit colours for the coin (auto-detected via COLORTERM)
   -h, --help            Show this help
 
 Example for cron/automation: $0 --yes --action start
@@ -38,6 +39,8 @@ ASSUME_YES=0
 FORCE=0
 UPGRADE_SYSTEM=0
 NO_ANIMATION=0
+TRUECOLOR=0
+case "${COLORTERM:-}" in truecolor|24bit) TRUECOLOR=1 ;; esac
 VER=""
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -50,6 +53,7 @@ while [ $# -gt 0 ]; do
         -f|--force)          FORCE=1 ;;
         -u|--upgrade-system) UPGRADE_SYSTEM=1 ;;
         -n|--no-animation)   NO_ANIMATION=1 ;;
+        -t|--truecolor)      TRUECOLOR=1 ;;
         -h|--help)           usage; exit 0 ;;
         -*)                  echo -e "${RED}Unknown option: $1${NC}"; usage; exit 1 ;;
         *)                   VER="${1#v}" ;;
@@ -85,10 +89,26 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
-# awk program that renders frames of a spinning coin with a white "S" using
-# half-block characters (2 pixels per character cell). D = diameter, N = frames.
+# awk program that renders the animation frames with half-block characters
+# (2 square pixels per character cell): a spinning coin (blue-indigo gradient,
+# metallic rim, white "S" with shadow, glint, reeded edge) in front of a
+# twinkling grid of grey squares that fades out towards the top.
+# Input variables: D = coin diameter (pixels), N = frames per rotation,
+# ROUNDS = rotations, BW = width in columns, T1/T2 = text lines,
+# TC = 1 for truecolor (24-bit), 0 for the 256-colour fallback.
+# Output: ROUNDS*N spinning frames plus one final face-on frame, each
+# D/2+2 lines long.
 read -r -d '' COIN_AWK <<'AWK' || true
 function abs(x) { return x < 0 ? -x : x }
+function clamp(x) { return x < 0 ? 0 : (x > 1 ? 1 : x) }
+# Colours are handled as "r;g;b" strings
+function rgb(r, g, b) { return int(clamp(r / 255) * 255 + 0.5) ";" int(clamp(g / 255) * 255 + 0.5) ";" int(clamp(b / 255) * 255 + 0.5) }
+function hex(h) { return rgb(H2D[substr(h, 1, 2)], H2D[substr(h, 3, 2)], H2D[substr(h, 5, 2)]) }
+# Mix colours a and b (t = 0..1 towards b), then multiply by brightness k
+function mix(a, b, t, k,   p, q) {
+    split(a, p, ";"); split(b, q, ";")
+    return rgb((p[1] + (q[1] - p[1]) * t) * k, (p[2] + (q[2] - p[2]) * t) * k, (p[3] + (q[3] - p[3]) * t) * k)
+}
 # True when face-on point (x,y) lies on the "S": two arcs stacked on top of each other
 function on_s(x, y,   d, t) {
     d = sqrt(x * x + (y + SR) ^ 2)                        # upper arc, centre (0,-SR)
@@ -103,89 +123,179 @@ function on_s(x, y,   d, t) {
     }
     return 0
 }
-# Colour of pixel (u,v), both in [-1,1], for the current rotation angle
-function px(u, v,   half, up, r2) {
-    if (v * v > 1) return 0
-    half = sqrt(1 - v * v)
-    if (ac > 0.04 && (u / cs) ^ 2 + v * v <= 1) {
-        up = u / ac                                       # face-on x (back side shows the same S)
-        r2 = up * up + v * v
-        if (r2 > 0.80) return rim
-        if (on_s(up, v)) return SYM
-        return shade
+# Colour of the coin face at face-on point (x,y)
+function face(x, y,   r, t, c, sheen) {
+    r = sqrt(x * x + y * y)
+    t = clamp((x * 0.6 + y * 0.8 + 1) / 2)               # light from the top left
+    if (r > 0.87) return mix(RIM1, RIM2, t, LIGHT)       # bevelled metal rim
+    if (on_s(x, y)) {
+        c = mix(SYM1, SYM2, (y + 1) / 2, 1)
+    } else {
+        c = mix(FACE1, FACE2, t, LIGHT)
+        if (r > 0.80) c = mix(c, GROOVE, 0.6, 1)         # engraved ring inside the rim
+        else if (on_s(x - 0.07, y - 0.09)) c = mix(c, SHADOW, 0.55, 1)   # drop shadow of the S
     }
-    if (abs(u) <= ac * half + T * abs(sn)) return EDGE
-    return 0
+    # glint sweeping over the face while the coin turns
+    sheen = exp(-(((x - y * 0.6) - GLINT) / 0.16) ^ 2) * 0.45 * ac
+    return mix(c, WHITE, sheen, 1)
 }
-function fg(c) { return "\033[38;5;" c "m" }
-function bg(c) { return "\033[48;5;" c "m" }
-BEGIN {
-    PI = atan2(0, -1)
-    D = D ? D : 32; N = N ? N : 24
-    T = 0.09; SR = 0.30; SW = 0.12
-    EDGE = 24; SYM = 231
-    for (f = 0; f < N; f++) {
-        a = 2 * PI * f / N; cs = cos(a); sn = sin(a); ac = abs(cs)
-        # darker as the coin turns away, back side slightly darker than the front
-        shade = ac > 0.75 ? 27 : (ac > 0.45 ? 26 : 25)
-        rim   = ac > 0.75 ? 39 : (ac > 0.45 ? 33 : 32)
-        if (cs < 0) { shade = ac > 0.75 ? 26 : 25; rim = ac > 0.75 ? 33 : 32 }
-        for (y = 0; y < D; y += 2) {
-            line = ""
-            for (x = 0; x < D; x++) {
-                u = (x + 0.5) / D * 2 - 1
-                t = px(u, (y + 0.5) / D * 2 - 1)
-                b = px(u, (y + 1.5) / D * 2 - 1)
-                if (t == 0 && b == 0) line = line "\033[0m "
-                else if (b == 0)      line = line "\033[0m" fg(t) "▀"
-                else if (t == 0)      line = line "\033[0m" fg(b) "▄"
-                else                  line = line fg(t) bg(b) "▀"
+# Colour of coin pixel (u,v), both in [-1,1], for the current angle; "" = transparent.
+# The coin turns around its vertical axis: the face towards the viewer is shifted
+# by half the thickness, so the edge shows on one side only. After a half turn the
+# back is visible, where the "S" is seen mirrored.
+function coin(u, v,   half, xf) {
+    if (v * v > 1) return ""
+    half = sqrt(1 - v * v)
+    xf = (cs > 0 ? 1 : -1) * T / 2 * sn                   # centre of the visible face
+    if (ac > 0.04 && ((u - xf) / cs) ^ 2 + v * v <= 1)
+        return face((u - xf) / cs, v)                     # face-on x, mirrored on the back
+    if (abs(u) <= ac * half + T / 2 * abs(sn))            # reeded edge
+        return mix(EDGE1, EDGE2, abs(v), (int((v + 1) * D / 2) % 2 ? 0.75 : 1) * (0.55 + 0.45 * abs(sn)))
+    return ""
+}
+# Random grey level for a background square in pixel row y: dark at the top,
+# fading in, with a few bright squares
+function level(y,   f, g) {
+    f = y / (PH * 0.5); if (f > 1) f = 1; f = f * f
+    if (rand() < 0.07 * f) g = 188 + int(rand() * 50)
+    else g = 18 + int(f * (30 + rand() * rand() * 130))
+    return rgb(g, g, g)
+}
+# Colour of pixel (x,y) of the whole picture
+function pixel(x, y,   c, cx, dx, dy, d, gl) {
+    cx = x - CX
+    if (cx >= 0 && cx < D && y >= CY && y < CY + D) {
+        c = coin((cx + 0.5) / D * 2 - 1, (y - CY + 0.5) / D * 2 - 1)
+        if (c != "") return c
+    }
+    c = (x % 2 || y % 2) ? GAP : L[x, y]                  # dark seams between the squares
+    # soft blue glow around the coin
+    dx = (x + 0.5 - CX - D / 2) / (D / 2); dy = (y + 0.5 - CY - D / 2) / (D / 2)
+    d = sqrt(dx * dx / (0.15 + 0.85 * ac) ^ 2 + dy * dy) - 1
+    if (TC && d < 0.7) {                                  # (truecolor only)
+        gl = (1 - d / 0.7) ^ 2 * (x % 2 || y % 2 ? 0.25 : 0.55)
+        c = mix(c, GLOW, gl, 1)
+    }
+    return c
+}
+# 256-colour index for "r;g;b" (for terminals without truecolor): greys map to the
+# grey ramp, other colours to the nearest of a fixed set of blues so the coin
+# keeps a consistent colour
+function to256(c,   p, i, q, d, best, bd, gi) {
+    if (c in C256) return C256[c]
+    split(c, p, ";")
+    if (p[1] == p[2] && p[2] == p[3]) {
+        gi = int((p[1] - 8) / 10 + 0.5); if (gi < 0) gi = 0; if (gi > 23) gi = 23
+        return C256[c] = (p[1] < 4 ? 16 : 232 + gi)
+    }
+    bd = -1
+    for (i = 1; i <= NPAL; i++) {
+        split(PALRGB[i], q, ";")
+        d = (p[1] - q[1]) ^ 2 + (p[2] - q[2]) ^ 2 + (p[3] - q[3]) ^ 2
+        if (bd < 0 || d < bd) { bd = d; best = PAL[i] }
+    }
+    return C256[c] = best
+}
+function sgr(kind, c) { return TC ? kind "8;2;" c : kind "8;5;" to256(c) }
+# Print one character cell with top/bottom pixel colours, only sending colour codes that change
+function cell(t, b,   codes) {
+    codes = ""
+    if (t == b) {
+        if (b != curbg) { codes = sgr(4, b); curbg = b }
+        out = out (codes != "" ? "\033[" codes "m" : "") " "
+        return
+    }
+    if (t != curfg) { codes = sgr(3, t); curfg = t }
+    if (b != curbg) { codes = codes (codes != "" ? ";" : "") sgr(4, b); curbg = b }
+    out = out (codes != "" ? "\033[" codes "m" : "") "▀"
+}
+function visible_len(s) { gsub(/\033\[[0-9;]*m/, "", s); return length(s) }
+function frame(a,   x, y, row, txt) {
+    cs = cos(a); sn = sin(a); ac = abs(cs)
+    LIGHT = (0.55 + 0.45 * ac) * (cs > 0 ? 1 : 0.85)    # darker as the coin turns away, back a bit darker
+    GLINT = -1.8 + 3.6 * ((a / PI) % 1)                   # position of the glint, sweeps each half turn
+    for (row = 0; row < ROWS; row++) {
+        out = ""; curfg = ""; curbg = ""
+        txt = (row == TR1) ? T1 : ((row == TR2) ? T2 : "")
+        for (x = 0; x < BW; x++) {
+            # text panel: dark box to the right of the coin
+            if (row >= TR1 - 1 && row <= TR2 + 1 && x >= TX && x < TX + TW) {
+                if (x == TX + 2 && txt != "") {
+                    out = out "\033[0m\033[" sgr(4, PANEL) "m" txt "\033[0m\033[" sgr(4, PANEL) "m"
+                    curfg = ""; curbg = PANEL
+                    x += visible_len(txt) - 1
+                    continue
+                }
+                cell(PANEL, PANEL)
+                continue
             }
-            print line "\033[0m"
+            cell(pixel(x, 2 * row), pixel(x, 2 * row + 1))
         }
+        print out "\033[0m"
+    }
+}
+BEGIN {
+    srand()
+    PI = atan2(0, -1)
+    for (i = 0; i < 256; i++) H2D[sprintf("%02x", i)] = i
+    # 256-colour fallback palette: blues from navy to white, plus a few dark greys
+    NPAL = split("16 17 18 19 20 21 25 26 27 32 33 39 68 69 75 111 153 195 231 233 235 237", PAL, " ")
+    split("000000 00005f 000087 0000af 0000d7 0000ff 005faf 005fd7 005fff 0087d7 0087ff 00afff 5f87d7 5f87ff 5fafff 87afff afd7ff d7ffff ffffff 121212 262626 3a3a3a", PH6, " ")
+    for (i = 1; i <= NPAL; i++) PALRGB[i] = hex(PH6[i])
+    # palette: electric blue to deep indigo, white "S", metallic rim and edge
+    FACE1 = hex("3d8bff"); FACE2 = hex("1f2fb8"); GROOVE = hex("0c1a6b"); SHADOW = hex("0a1250")
+    RIM1 = hex("d8e8ff"); RIM2 = hex("2b4bb8"); SYM1 = hex("ffffff"); SYM2 = hex("cfe0ff")
+    EDGE1 = hex("8fb4ff"); EDGE2 = hex("1b2f86"); WHITE = hex("ffffff"); GLOW = hex("2f6bff")
+    GAP = hex("0b0b0f"); PANEL = hex("000000")
+    T = 0.16; SR = 0.30; SW = 0.12                        # T = coin thickness
+    ROWS = D / 2 + 2; PH = 2 * ROWS
+    CX = 2; CY = 2                                        # coin position in pixels
+    TX = CX + D + 3; TW = BW - TX - 1                     # text panel columns
+    if (TW > 46) TW = 46
+    TR1 = int(ROWS / 2) - 2; TR2 = TR1 + 2                # text rows
+    # keep the panel background when the text resets its colours
+    gsub(/\033\[0m/, "\033[0m\033[" sgr(4, PANEL) "m", T1)
+    gsub(/\033\[0m/, "\033[0m\033[" sgr(4, PANEL) "m", T2)
+    for (y = 0; y < PH; y += 2) for (x = 0; x < BW; x += 2) L[x, y] = level(y)
+    for (f = 0; f <= ROUNDS * N; f++) {
+        frame(2 * PI * (f % N) / N)
+        # let some squares twinkle
+        for (y = 0; y < PH; y += 2) for (x = 0; x < BW; x += 2) if (rand() < 0.08) L[x, y] = level(y)
     }
 }
 AWK
 
 COIN_SIZE=32
 COIN_FRAMES=24
-COIN_HEIGHT=$((COIN_SIZE / 2))
-COIN=()
+COIN_ROWS=$((COIN_SIZE / 2 + 2))
 
-# Show the spinning coin for a number of rotations, then the coin facing
-# forward with two lines of text next to it. Any key skips the animation.
+# Show the spinning coin in front of the twinkling background for a number of
+# rotations, ending face-on with two lines of text next to it.
+# Any key skips the animation.
 show_coin() {
     local rounds="$1" text1="$2" text2="$3"
-    local cols lines f k key="" pad="  "
-    local -a suffix=()
+    local cols lines width k total key=""
+    local -a frames=()
 
-    if [ "$ANIMATE" -eq 0 ]; then
-        echo -e "${text1}"
-        echo -e "${text2}"
-        return 0
+    if [ "$ANIMATE" -eq 1 ]; then
+        read -r lines cols < <(stty size < /dev/tty 2> /dev/null || echo 24 80)
+        if [ "$cols" -ge 80 ] && [ "$lines" -ge $((COIN_ROWS + 4)) ]; then
+            width=$((cols > 120 ? 120 : cols))
+            mapfile -t frames < <(awk -v D="$COIN_SIZE" -v N="$COIN_FRAMES" -v ROUNDS="$rounds" \
+                -v BW="$width" -v TC="$TRUECOLOR" -v T1="$text1" -v T2="$text2" "$COIN_AWK")
+        fi
     fi
-    read -r lines cols < <(stty size < /dev/tty 2> /dev/null || echo 24 80)
-    if [ "$cols" -lt 70 ] || [ "$lines" -lt $((COIN_HEIGHT + 4)) ]; then
-        echo -e "${text1}"
-        echo -e "${text2}"
-        return 0
-    fi
-
-    if [ "${#COIN[@]}" -eq 0 ]; then
-        mapfile -t COIN < <(awk -v D="$COIN_SIZE" -v N="$COIN_FRAMES" "$COIN_AWK")
-    fi
-    if [ "${#COIN[@]}" -ne $((COIN_HEIGHT * COIN_FRAMES)) ]; then
-        COIN=()
+    total=$((rounds * COIN_FRAMES + 1))
+    if [ "${#frames[@]}" -ne $((total * COIN_ROWS)) ]; then
         echo -e "${text1}"
         echo -e "${text2}"
         return 0
     fi
 
     printf '\033[?25l'
-    for ((k = 0; k < rounds * COIN_FRAMES; k++)); do
-        f=$((k % COIN_FRAMES))
-        printf "${pad}%s\n" "${COIN[@]:f*COIN_HEIGHT:COIN_HEIGHT}"
-        printf '\033[%dA' "$COIN_HEIGHT"
+    for ((k = 0; k < total - 1; k++)); do
+        printf '%s\n' "${frames[@]:k*COIN_ROWS:COIN_ROWS}"
+        printf '\033[%dA' "$COIN_ROWS"
         if [ -t 0 ]; then
             if read -rsn1 -t 0.05 key 2> /dev/null; then
                 break
@@ -194,13 +304,8 @@ show_coin() {
             sleep 0.05
         fi
     done
-
-    # Final frame: coin facing forward with the text next to it
-    suffix[$((COIN_HEIGHT / 2 - 1))]="     ${text1}"
-    suffix[$((COIN_HEIGHT / 2 + 1))]="     ${text2}"
-    for ((k = 0; k < COIN_HEIGHT; k++)); do
-        printf "${pad}%s%b\n" "${COIN[k]}" "${suffix[k]:-}"
-    done
+    # Final frame: coin facing forward
+    printf '%s\n' "${frames[@]:(total-1)*COIN_ROWS:COIN_ROWS}"
     printf '\033[?25h'
     echo
 }
@@ -284,6 +389,10 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Start on a clean screen (old output stays reachable in the scrollback)
+if [ "$ANIMATE" -eq 1 ]; then
+    printf '\033[H\033[2J'
+fi
 show_coin 2 "${CYAN}\033[1mS Y S C O I N${NC}" "${PURPLE}Masternode updater${NC}"
 
 BIN_DIR="/usr/local/bin"
