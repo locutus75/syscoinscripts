@@ -85,8 +85,13 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
-# awk program that renders frames of a spinning coin with a white "S" using
-# half-block characters (2 pixels per character cell). D = diameter, N = frames.
+# awk program that renders the animation frames with half-block characters
+# (2 square pixels per character cell): a spinning coin with a white "S" in
+# front of a twinkling grid of grey squares that fades out towards the top.
+# Input variables: D = coin diameter (pixels), N = frames per rotation,
+# ROUNDS = rotations, BW = width in columns, T1/T2 = text lines.
+# Output: ROUNDS*N spinning frames plus one final face-on frame, each
+# D/2+2 lines long.
 read -r -d '' COIN_AWK <<'AWK' || true
 function abs(x) { return x < 0 ? -x : x }
 # True when face-on point (x,y) lies on the "S": two arcs stacked on top of each other
@@ -103,8 +108,8 @@ function on_s(x, y,   d, t) {
     }
     return 0
 }
-# Colour of pixel (u,v), both in [-1,1], for the current rotation angle
-function px(u, v,   half, up, r2) {
+# Colour of coin pixel (u,v), both in [-1,1], for the current angle; 0 = transparent
+function coin(u, v,   half, up, r2) {
     if (v * v > 1) return 0
     half = sqrt(1 - v * v)
     if (ac > 0.04 && (u / cs) ^ 2 + v * v <= 1) {
@@ -117,75 +122,115 @@ function px(u, v,   half, up, r2) {
     if (abs(u) <= ac * half + T * abs(sn)) return EDGE
     return 0
 }
-function fg(c) { return "\033[38;5;" c "m" }
-function bg(c) { return "\033[48;5;" c "m" }
-BEGIN {
-    PI = atan2(0, -1)
-    D = D ? D : 32; N = N ? N : 24
-    T = 0.09; SR = 0.30; SW = 0.12
-    EDGE = 24; SYM = 231
-    for (f = 0; f < N; f++) {
-        a = 2 * PI * f / N; cs = cos(a); sn = sin(a); ac = abs(cs)
-        # darker as the coin turns away, back side slightly darker than the front
-        shade = ac > 0.75 ? 27 : (ac > 0.45 ? 26 : 25)
-        rim   = ac > 0.75 ? 39 : (ac > 0.45 ? 33 : 32)
-        if (cs < 0) { shade = ac > 0.75 ? 26 : 25; rim = ac > 0.75 ? 33 : 32 }
-        for (y = 0; y < D; y += 2) {
-            line = ""
-            for (x = 0; x < D; x++) {
-                u = (x + 0.5) / D * 2 - 1
-                t = px(u, (y + 0.5) / D * 2 - 1)
-                b = px(u, (y + 1.5) / D * 2 - 1)
-                if (t == 0 && b == 0) line = line "\033[0m "
-                else if (b == 0)      line = line "\033[0m" fg(t) "▀"
-                else if (t == 0)      line = line "\033[0m" fg(b) "▄"
-                else                  line = line fg(t) bg(b) "▀"
+# Random grey level for a background square in pixel row y: dark at the top,
+# fading in, with a few bright squares
+function level(y,   f) {
+    f = y / (PH * 0.5); if (f > 1) f = 1; f = f * f
+    if (rand() < 0.07 * f) return 250 - int(rand() * 5)
+    return 233 + int(f * (3 + rand() * rand() * 13))
+}
+# Colour of pixel (x,y) of the whole picture
+function pixel(x, y,   c, cx) {
+    cx = x - CX
+    if (cx >= 0 && cx < D && y >= CY && y < CY + D) {
+        c = coin((cx + 0.5) / D * 2 - 1, (y - CY + 0.5) / D * 2 - 1)
+        if (c) return c
+    }
+    if (x % 2 || y % 2) return GAP                        # dark seams between the squares
+    return L[x, y]
+}
+# Print one character cell with top/bottom pixel colours, only sending colour codes that change
+function cell(t, b,   codes) {
+    codes = ""
+    if (t == b) {
+        if (b != curbg) { codes = "48;5;" b; curbg = b }
+        out = out (codes != "" ? "\033[" codes "m" : "") " "
+        return
+    }
+    if (t != curfg) { codes = "38;5;" t; curfg = t }
+    if (b != curbg) { codes = codes (codes != "" ? ";" : "") "48;5;" b; curbg = b }
+    out = out (codes != "" ? "\033[" codes "m" : "") "▀"
+}
+function visible_len(s) { gsub(/\033\[[0-9;]*m/, "", s); return length(s) }
+function frame(a,   x, y, row, txt, tx) {
+    cs = cos(a); sn = sin(a); ac = abs(cs)
+    # darker as the coin turns away, back side slightly darker than the front
+    shade = ac > 0.75 ? 27 : (ac > 0.45 ? 26 : 25)
+    rim   = ac > 0.75 ? 39 : (ac > 0.45 ? 33 : 32)
+    if (cs < 0) { shade = ac > 0.75 ? 26 : 25; rim = ac > 0.75 ? 33 : 32 }
+    for (row = 0; row < ROWS; row++) {
+        out = ""; curfg = -1; curbg = -1
+        txt = (row == TR1) ? T1 : ((row == TR2) ? T2 : "")
+        for (x = 0; x < BW; x++) {
+            # text panel: dark box to the right of the coin
+            if (row >= TR1 - 1 && row <= TR2 + 1 && x >= TX && x < TX + TW) {
+                if (x == TX + 2 && txt != "") {
+                    out = out "\033[0m\033[48;5;" PANEL "m" txt "\033[0m\033[48;5;" PANEL "m"
+                    curfg = -1; curbg = PANEL
+                    x += visible_len(txt) - 1
+                    continue
+                }
+                cell(PANEL, PANEL)
+                continue
             }
-            print line "\033[0m"
+            cell(pixel(x, 2 * row), pixel(x, 2 * row + 1))
         }
+        print out "\033[0m"
+    }
+}
+BEGIN {
+    srand()
+    PI = atan2(0, -1)
+    T = 0.09; SR = 0.30; SW = 0.12
+    EDGE = 24; SYM = 231; GAP = 232; PANEL = 16
+    ROWS = D / 2 + 2; PH = 2 * ROWS
+    CX = 2; CY = 2                                        # coin position in pixels
+    TX = CX + D + 3; TW = BW - TX - 1                     # text panel columns
+    if (TW > 46) TW = 46
+    TR1 = int(ROWS / 2) - 2; TR2 = TR1 + 2                # text rows
+    # keep the panel background when the text resets its colours
+    gsub(/\033\[0m/, "\033[0m\033[48;5;" PANEL "m", T1)
+    gsub(/\033\[0m/, "\033[0m\033[48;5;" PANEL "m", T2)
+    for (y = 0; y < PH; y += 2) for (x = 0; x < BW; x += 2) L[x, y] = level(y)
+    for (f = 0; f <= ROUNDS * N; f++) {
+        frame(2 * PI * (f % N) / N)
+        # let some squares twinkle
+        for (y = 0; y < PH; y += 2) for (x = 0; x < BW; x += 2) if (rand() < 0.08) L[x, y] = level(y)
     }
 }
 AWK
 
 COIN_SIZE=32
 COIN_FRAMES=24
-COIN_HEIGHT=$((COIN_SIZE / 2))
-COIN=()
+COIN_ROWS=$((COIN_SIZE / 2 + 2))
 
-# Show the spinning coin for a number of rotations, then the coin facing
-# forward with two lines of text next to it. Any key skips the animation.
+# Show the spinning coin in front of the twinkling background for a number of
+# rotations, ending face-on with two lines of text next to it.
+# Any key skips the animation.
 show_coin() {
     local rounds="$1" text1="$2" text2="$3"
-    local cols lines f k key="" pad="  "
-    local -a suffix=()
+    local cols lines width k total key=""
+    local -a frames=()
 
-    if [ "$ANIMATE" -eq 0 ]; then
-        echo -e "${text1}"
-        echo -e "${text2}"
-        return 0
+    if [ "$ANIMATE" -eq 1 ]; then
+        read -r lines cols < <(stty size < /dev/tty 2> /dev/null || echo 24 80)
+        if [ "$cols" -ge 80 ] && [ "$lines" -ge $((COIN_ROWS + 4)) ]; then
+            width=$((cols > 120 ? 120 : cols))
+            mapfile -t frames < <(awk -v D="$COIN_SIZE" -v N="$COIN_FRAMES" -v ROUNDS="$rounds" \
+                -v BW="$width" -v T1="$text1" -v T2="$text2" "$COIN_AWK")
+        fi
     fi
-    read -r lines cols < <(stty size < /dev/tty 2> /dev/null || echo 24 80)
-    if [ "$cols" -lt 70 ] || [ "$lines" -lt $((COIN_HEIGHT + 4)) ]; then
-        echo -e "${text1}"
-        echo -e "${text2}"
-        return 0
-    fi
-
-    if [ "${#COIN[@]}" -eq 0 ]; then
-        mapfile -t COIN < <(awk -v D="$COIN_SIZE" -v N="$COIN_FRAMES" "$COIN_AWK")
-    fi
-    if [ "${#COIN[@]}" -ne $((COIN_HEIGHT * COIN_FRAMES)) ]; then
-        COIN=()
+    total=$((rounds * COIN_FRAMES + 1))
+    if [ "${#frames[@]}" -ne $((total * COIN_ROWS)) ]; then
         echo -e "${text1}"
         echo -e "${text2}"
         return 0
     fi
 
     printf '\033[?25l'
-    for ((k = 0; k < rounds * COIN_FRAMES; k++)); do
-        f=$((k % COIN_FRAMES))
-        printf "${pad}%s\n" "${COIN[@]:f*COIN_HEIGHT:COIN_HEIGHT}"
-        printf '\033[%dA' "$COIN_HEIGHT"
+    for ((k = 0; k < total - 1; k++)); do
+        printf '%s\n' "${frames[@]:k*COIN_ROWS:COIN_ROWS}"
+        printf '\033[%dA' "$COIN_ROWS"
         if [ -t 0 ]; then
             if read -rsn1 -t 0.05 key 2> /dev/null; then
                 break
@@ -194,13 +239,8 @@ show_coin() {
             sleep 0.05
         fi
     done
-
-    # Final frame: coin facing forward with the text next to it
-    suffix[$((COIN_HEIGHT / 2 - 1))]="     ${text1}"
-    suffix[$((COIN_HEIGHT / 2 + 1))]="     ${text2}"
-    for ((k = 0; k < COIN_HEIGHT; k++)); do
-        printf "${pad}%s%b\n" "${COIN[k]}" "${suffix[k]:-}"
-    done
+    # Final frame: coin facing forward
+    printf '%s\n' "${frames[@]:(total-1)*COIN_ROWS:COIN_ROWS}"
     printf '\033[?25h'
     echo
 }
