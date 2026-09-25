@@ -13,7 +13,7 @@ usage() {
     cat <<EOF
 Usage: $0 [options] [version]
 
-  version               Version to install, e.g. 5.1.1 (default: latest GitHub release)
+  version               Version to install, e.g. 5.1.1 (default: always the latest stable GitHub release)
 
 Options:
   -a, --action ACTION   Action after install, skips the menu:
@@ -151,10 +151,18 @@ case "$(uname -m)" in
         ;;
 esac
 
-# Determine version: from argument or latest GitHub release (via redirect, no API rate limit)
+# Determine version: from argument, otherwise always the latest stable GitHub release
+# (pre-releases such as testnet builds are skipped by GitHub's "latest")
 if [ -z "$VER" ]; then
+    # 1st try: redirect of /releases/latest (no API rate limit)
     latest_url=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/syscoin/syscoin/releases/latest" || true)
     VER=$(echo "$latest_url" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+$' | cut -c2- || true)
+    # 2nd try: GitHub API
+    if [ -z "$VER" ]; then
+        VER=$(curl -fsSL "https://api.github.com/repos/syscoin/syscoin/releases/latest" \
+            | grep -oE '"tag_name": *"v[0-9]+\.[0-9]+\.[0-9]+"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+    fi
+    [ -n "$VER" ] && echo -e "${PURPLE}Latest release on GitHub: ${VER}${NC}"
 fi
 
 if ! [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -206,18 +214,27 @@ if ! wget -q --show-progress "${BASE_URL}/${TARBALL}"; then
 fi
 
 echo -e "${CYAN}Verifying checksum...${NC}"
-if wget -q "${BASE_URL}/SHA256SUMS"; then
-    if ! grep -q " ${TARBALL}\$" SHA256SUMS; then
-        echo -e "${RED}${TARBALL} not listed in SHA256SUMS. Exiting.${NC}"
+# Syscoin publishes the checksums as SHA256SUMS.asc (plain list), older/other releases may use SHA256SUMS
+SUMS_FILE=""
+for f in SHA256SUMS.asc SHA256SUMS; do
+    if wget -q "${BASE_URL}/${f}"; then
+        SUMS_FILE="$f"
+        break
+    fi
+done
+
+if [ -n "$SUMS_FILE" ]; then
+    if ! grep -E "^[0-9a-fA-F]{64}  \*?${TARBALL}\$" "$SUMS_FILE" > "${TARBALL}.sha256"; then
+        echo -e "${RED}${TARBALL} not listed in ${SUMS_FILE}. Exiting.${NC}"
         exit 1
     fi
-    if ! sha256sum --ignore-missing -c SHA256SUMS; then
+    if ! sha256sum -c "${TARBALL}.sha256"; then
         echo -e "${RED}Checksum verification FAILED. Exiting.${NC}"
         exit 1
     fi
-    echo -e "${GREEN}Checksum OK.${NC}"
+    echo -e "${GREEN}Checksum OK (${SUMS_FILE}).${NC}"
 else
-    echo -e "${ORANGE}No SHA256SUMS file found for this release, the download cannot be verified.${NC}"
+    echo -e "${ORANGE}No checksum file found for this release, the download cannot be verified.${NC}"
     confirm_risky "Continue without verification?" || exit 1
 fi
 
