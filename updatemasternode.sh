@@ -25,6 +25,7 @@ Options:
   -f, --force           With --yes: also reinstall the same version, allow downgrades
                         and install without checksum verification
   -u, --upgrade-system  Also run apt-get upgrade (otherwise asked interactively)
+  -n, --no-animation    Disable the spinning coin and spinners
   -h, --help            Show this help
 
 Example for cron/automation: $0 --yes --action start
@@ -36,6 +37,7 @@ ACTION=""
 ASSUME_YES=0
 FORCE=0
 UPGRADE_SYSTEM=0
+NO_ANIMATION=0
 VER=""
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -47,6 +49,7 @@ while [ $# -gt 0 ]; do
         -y|--yes)            ASSUME_YES=1 ;;
         -f|--force)          FORCE=1 ;;
         -u|--upgrade-system) UPGRADE_SYSTEM=1 ;;
+        -n|--no-animation)   NO_ANIMATION=1 ;;
         -h|--help)           usage; exit 0 ;;
         -*)                  echo -e "${RED}Unknown option: $1${NC}"; usage; exit 1 ;;
         *)                   VER="${1#v}" ;;
@@ -59,10 +62,229 @@ case "$ACTION" in
     *) echo -e "${RED}Invalid action: ${ACTION}${NC}"; usage; exit 1 ;;
 esac
 
+# ---------------------------------------------------------------------------
+# Console animations: spinning Syscoin coin and spinners.
+# Only used on a UTF-8 terminal; disabled with --no-animation or when output
+# is redirected (cron, logs), then plain text is printed instead.
+# ---------------------------------------------------------------------------
+ANIMATE=0
+if [ "$NO_ANIMATION" -eq 0 ] && [ -t 1 ] && [ -t 2 ] && [ "${TERM:-dumb}" != "dumb" ] \
+    && [ "$(locale charmap 2> /dev/null || true)" = "UTF-8" ] && command -v awk > /dev/null; then
+    ANIMATE=1
+fi
+
+WORK_DIR=""
+cleanup() {
+    if [ -n "$WORK_DIR" ]; then
+        rm -rf "$WORK_DIR"
+    fi
+    if [ "$ANIMATE" -eq 1 ]; then
+        printf '\033[0m\033[?25h' # reset colors, show cursor
+    fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+# awk program that renders frames of a spinning coin with a white "S" using
+# half-block characters (2 pixels per character cell). D = diameter, N = frames.
+read -r -d '' COIN_AWK <<'AWK' || true
+function abs(x) { return x < 0 ? -x : x }
+# True when face-on point (x,y) lies on the "S": two arcs stacked on top of each other
+function on_s(x, y,   d, t) {
+    d = sqrt(x * x + (y + SR) ^ 2)                        # upper arc, centre (0,-SR)
+    if (abs(d - SR) <= SW) {
+        t = atan2(y + SR, x) * 180 / PI
+        if (t >= 90 || t <= -35) return 1
+    }
+    d = sqrt(x * x + (y - SR) ^ 2)                        # lower arc, centre (0,SR)
+    if (abs(d - SR) <= SW) {
+        t = atan2(y - SR, x) * 180 / PI
+        if (t >= -90 && t <= 145) return 1
+    }
+    return 0
+}
+# Colour of pixel (u,v), both in [-1,1], for the current rotation angle
+function px(u, v,   half, up, r2) {
+    if (v * v > 1) return 0
+    half = sqrt(1 - v * v)
+    if (ac > 0.04 && (u / cs) ^ 2 + v * v <= 1) {
+        up = u / ac                                       # face-on x (back side shows the same S)
+        r2 = up * up + v * v
+        if (r2 > 0.80) return rim
+        if (on_s(up, v)) return SYM
+        return shade
+    }
+    if (abs(u) <= ac * half + T * abs(sn)) return EDGE
+    return 0
+}
+function fg(c) { return "\033[38;5;" c "m" }
+function bg(c) { return "\033[48;5;" c "m" }
+BEGIN {
+    PI = atan2(0, -1)
+    D = D ? D : 32; N = N ? N : 24
+    T = 0.09; SR = 0.30; SW = 0.12
+    EDGE = 24; SYM = 231
+    for (f = 0; f < N; f++) {
+        a = 2 * PI * f / N; cs = cos(a); sn = sin(a); ac = abs(cs)
+        # darker as the coin turns away, back side slightly darker than the front
+        shade = ac > 0.75 ? 27 : (ac > 0.45 ? 26 : 25)
+        rim   = ac > 0.75 ? 39 : (ac > 0.45 ? 33 : 32)
+        if (cs < 0) { shade = ac > 0.75 ? 26 : 25; rim = ac > 0.75 ? 33 : 32 }
+        for (y = 0; y < D; y += 2) {
+            line = ""
+            for (x = 0; x < D; x++) {
+                u = (x + 0.5) / D * 2 - 1
+                t = px(u, (y + 0.5) / D * 2 - 1)
+                b = px(u, (y + 1.5) / D * 2 - 1)
+                if (t == 0 && b == 0) line = line "\033[0m "
+                else if (b == 0)      line = line "\033[0m" fg(t) "▀"
+                else if (t == 0)      line = line "\033[0m" fg(b) "▄"
+                else                  line = line fg(t) bg(b) "▀"
+            }
+            print line "\033[0m"
+        }
+    }
+}
+AWK
+
+COIN_SIZE=32
+COIN_FRAMES=24
+COIN_HEIGHT=$((COIN_SIZE / 2))
+COIN=()
+
+# Show the spinning coin for a number of rotations, then the coin facing
+# forward with two lines of text next to it. Any key skips the animation.
+show_coin() {
+    local rounds="$1" text1="$2" text2="$3"
+    local cols lines f k key="" pad="  "
+    local -a suffix=()
+
+    if [ "$ANIMATE" -eq 0 ]; then
+        echo -e "${text1}"
+        echo -e "${text2}"
+        return 0
+    fi
+    read -r lines cols < <(stty size < /dev/tty 2> /dev/null || echo 24 80)
+    if [ "$cols" -lt 70 ] || [ "$lines" -lt $((COIN_HEIGHT + 4)) ]; then
+        echo -e "${text1}"
+        echo -e "${text2}"
+        return 0
+    fi
+
+    if [ "${#COIN[@]}" -eq 0 ]; then
+        mapfile -t COIN < <(awk -v D="$COIN_SIZE" -v N="$COIN_FRAMES" "$COIN_AWK")
+    fi
+    if [ "${#COIN[@]}" -ne $((COIN_HEIGHT * COIN_FRAMES)) ]; then
+        COIN=()
+        echo -e "${text1}"
+        echo -e "${text2}"
+        return 0
+    fi
+
+    printf '\033[?25l'
+    for ((k = 0; k < rounds * COIN_FRAMES; k++)); do
+        f=$((k % COIN_FRAMES))
+        printf "${pad}%s\n" "${COIN[@]:f*COIN_HEIGHT:COIN_HEIGHT}"
+        printf '\033[%dA' "$COIN_HEIGHT"
+        if [ -t 0 ]; then
+            if read -rsn1 -t 0.05 key 2> /dev/null; then
+                break
+            fi
+        else
+            sleep 0.05
+        fi
+    done
+
+    # Final frame: coin facing forward with the text next to it
+    suffix[$((COIN_HEIGHT / 2 - 1))]="     ${text1}"
+    suffix[$((COIN_HEIGHT / 2 + 1))]="     ${text2}"
+    for ((k = 0; k < COIN_HEIGHT; k++)); do
+        printf "${pad}%s%b\n" "${COIN[k]}" "${suffix[k]:-}"
+    done
+    printf '\033[?25h'
+    echo
+}
+
+# Mini coin spinner frames
+SPIN=()
+for _s in "(S)" "(S)" "|S|" " | " "|S|" "(S)"; do
+    SPIN+=("\033[38;5;33m${_s:0:1}\033[1;97m${_s:1:1}\033[0;38;5;33m${_s:2:1}\033[0m")
+done
+
+spin_frame() { # message, frame counter, start time
+    printf '\r\033[K %b %b%s %b(%ds)%b' "${SPIN[$(($2 / 2 % ${#SPIN[@]}))]}" "$CYAN" "$1" "$NC" $((SECONDS - $3)) "$NC" >&2
+}
+
+spin_done() { # exit code, message, start time
+    if [ "$1" -eq 0 ]; then
+        printf '\r\033[K %b✔%b %s (%ds)\n' "$GREEN" "$NC" "$2" $((SECONDS - $3)) >&2
+    else
+        printf '\r\033[K %b✘%b %s (%ds)\n' "$RED" "$NC" "$2" $((SECONDS - $3)) >&2
+    fi
+    printf '\033[?25h' >&2
+}
+
+# Run a command with a spinner. Its stdout is passed through after it finishes,
+# so it can be used in $(...). Returns the exit code of the command.
+spin_run() {
+    local msg="$1" start=$SECONDS i=0 rc=0 pid out
+    shift
+    if [ "$ANIMATE" -eq 0 ]; then
+        echo -e "${CYAN}${msg}...${NC}" >&2
+        "$@"
+        return
+    fi
+    out=$(mktemp)
+    "$@" > "$out" 2> "$out.err" < /dev/null &
+    pid=$!
+    printf '\033[?25l' >&2
+    while kill -0 "$pid" 2> /dev/null; do
+        spin_frame "$msg" "$i" "$start"
+        i=$((i + 1))
+        sleep 0.1
+    done
+    wait "$pid" || rc=$?
+    spin_done "$rc" "$msg" "$start"
+    cat "$out"
+    if [ "$rc" -ne 0 ]; then
+        cat "$out.err" >&2
+    fi
+    rm -f "$out" "$out.err"
+    return "$rc"
+}
+
+# Wait with a spinner until a command succeeds, max <timeout> seconds.
+spin_until() {
+    local timeout="$1" msg="$2" start=$SECONDS i=0
+    shift 2
+    if [ "$ANIMATE" -eq 0 ]; then
+        echo -e "${CYAN}${msg} (max ${timeout}s)...${NC}"
+        while [ $((SECONDS - start)) -lt "$timeout" ]; do
+            "$@" && return 0
+            sleep 1
+        done
+        return 1
+    fi
+    printf '\033[?25l' >&2
+    while [ $((SECONDS - start)) -lt "$timeout" ]; do
+        if [ $((i % 5)) -eq 0 ] && "$@"; then
+            spin_done 0 "$msg" "$start"
+            return 0
+        fi
+        spin_frame "$msg" "$i" "$start"
+        i=$((i + 1))
+        sleep 0.1
+    done
+    spin_done 1 "$msg" "$start"
+    return 1
+}
+
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}Please run this script as root, e.g.: sudo $0${NC}"
     exit 1
 fi
+
+show_coin 2 "${CYAN}\033[1mS Y S C O I N${NC}" "${PURPLE}Masternode updater${NC}"
 
 BIN_DIR="/usr/local/bin"
 DATA_DIR="$HOME/.syscoin"
@@ -92,6 +314,10 @@ confirm_risky() {
     confirm "$1"
 }
 
+node_stopped() {
+    ! pgrep -x syscoind > /dev/null
+}
+
 # True when syscoind is managed by an active systemd service
 uses_systemd() {
     command -v systemctl > /dev/null && systemctl is-active --quiet "$SERVICE" 2> /dev/null
@@ -106,12 +332,7 @@ stop_node() {
         syscoin-cli stop || echo -e "${ORANGE}syscoin-cli stop failed, checking if syscoind is running...${NC}"
     fi
 
-    echo -e "${CYAN}Waiting for syscoind to shut down (max 5 minutes)...${NC}"
-    for _ in $(seq 1 300); do
-        pgrep -x syscoind > /dev/null || return 0
-        sleep 1
-    done
-    return 1
+    spin_until 300 "Waiting for syscoind to shut down" node_stopped
 }
 
 # Start syscoind, extra arguments (e.g. -reindex) are passed to syscoind
@@ -126,7 +347,7 @@ start_node() {
     fi
 
     # Make sure the process is still alive after startup
-    sleep 10
+    spin_run "Checking that syscoind keeps running" sleep 10
     pgrep -x syscoind > /dev/null
 }
 
@@ -191,8 +412,8 @@ if [ "$UPGRADE_SYSTEM" -eq 0 ] && [ "$ASSUME_YES" -eq 0 ]; then
     confirm "Also upgrade the system packages (apt-get upgrade)?" && UPGRADE_SYSTEM=1
 fi
 if [ "$UPGRADE_SYSTEM" -eq 1 ]; then
-    echo -e "${PURPLE}Upgrading system packages${NC}"
-    if ! { apt-get -y update > /dev/null && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade > /dev/null; }; then
+    if ! { spin_run "Updating package lists" apt-get -y update > /dev/null \
+        && spin_run "Upgrading system packages" env DEBIAN_FRONTEND=noninteractive apt-get -y upgrade > /dev/null; }; then
         echo -e "${ORANGE}Package upgrade failed, continuing with the Syscoin update.${NC}"
     fi
 fi
@@ -201,7 +422,6 @@ echo -e "${PURPLE}Updating Syscoin Masternode to version ${VER}${NC}"
 
 # Download and verify before stopping the node, to keep downtime minimal
 WORK_DIR=$(mktemp -d)
-trap 'rm -rf "$WORK_DIR"' EXIT
 cd "$WORK_DIR" || { echo -e "${RED}Failed to change to work directory. Exiting.${NC}"; exit 1; }
 
 TARBALL="syscoin-${VER}-${ARCH}.tar.gz"
@@ -238,8 +458,7 @@ else
     confirm_risky "Continue without verification?" || exit 1
 fi
 
-echo -e "${CYAN}Unpacking...${NC}"
-if ! tar xf "$TARBALL"; then
+if ! spin_run "Unpacking" tar xf "$TARBALL"; then
     echo -e "${RED}Extraction failed. Exiting.${NC}"
     exit 1
 fi
@@ -358,9 +577,7 @@ fi
 echo -e "${CYAN}Now running SyscoinCore:${ORANGE}"
 syscoin-cli -version || echo -e "${RED}Failed to check Syscoin version.${NC}"
 
-echo -e "${CYAN}Waiting for RPC to become available...${NC}"
-
-if blocks=$(timeout 300 syscoin-cli -rpcwait getblockcount); then
+if blocks=$(spin_run "Waiting for RPC to become available" timeout 300 syscoin-cli -rpcwait getblockcount); then
     echo -e "${CYAN}Current block height: ${ORANGE}${blocks}${NC}"
     echo -e "${CYAN}Masternode status:${ORANGE}"
     syscoin-cli masternode status || echo -e "${RED}Could not fetch masternode status.${NC}"
@@ -368,6 +585,8 @@ else
     echo -e "${RED}RPC did not become available within 5 minutes, check debug.log.${NC}"
 fi
 
-echo -e "${GREEN}Done. Previous binaries are backed up in ${BACKUP_DIR}${NC}"
+echo
+show_coin 1 "${GREEN}\033[1mDone!${NC} Syscoin ${VER} is running." "${PURPLE}Thanks for running a Syscoin masternode!${NC}"
+echo -e "${CYAN}Previous binaries are backed up in ${BACKUP_DIR}${NC}"
 echo -e "${CYAN}Liked it? Syscoin Tippingjar: ${ORANGE}sys1qpqnzpdg4thlktvzgkpazzh3yduh8ctum2eguxe${NC}"
 echo -e "${PURPLE}Thanks!${NC}"
