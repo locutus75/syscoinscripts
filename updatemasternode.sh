@@ -108,18 +108,22 @@ function on_s(x, y,   d, t) {
     }
     return 0
 }
-# Colour of coin pixel (u,v), both in [-1,1], for the current angle; 0 = transparent
-function coin(u, v,   half, up, r2) {
+# Colour of coin pixel (u,v), both in [-1,1], for the current angle; 0 = transparent.
+# The coin turns around its vertical axis: the face towards the viewer is shifted
+# by half the thickness, so the edge shows on one side only. After a half turn the
+# back is visible, where the "S" is seen mirrored.
+function coin(u, v,   half, xf, up, r2) {
     if (v * v > 1) return 0
     half = sqrt(1 - v * v)
-    if (ac > 0.04 && (u / cs) ^ 2 + v * v <= 1) {
-        up = u / ac                                       # face-on x (back side shows the same S)
+    xf = (cs > 0 ? 1 : -1) * T / 2 * sn                   # centre of the visible face
+    if (ac > 0.04 && ((u - xf) / cs) ^ 2 + v * v <= 1) {
+        up = (u - xf) / cs                                # face-on x, mirrored on the back
         r2 = up * up + v * v
         if (r2 > 0.80) return rim
         if (on_s(up, v)) return SYM
         return shade
     }
-    if (abs(u) <= ac * half + T * abs(sn)) return EDGE
+    if (abs(u) <= ac * half + T / 2 * abs(sn)) return EDGE
     return 0
 }
 # Random grey level for a background square in pixel row y: dark at the top,
@@ -181,7 +185,7 @@ function frame(a,   x, y, row, txt, tx) {
 BEGIN {
     srand()
     PI = atan2(0, -1)
-    T = 0.09; SR = 0.30; SW = 0.12
+    T = 0.16; SR = 0.30; SW = 0.12                        # T = coin thickness
     EDGE = 24; SYM = 231; GAP = 232; PANEL = 16
     ROWS = D / 2 + 2; PH = 2 * ROWS
     CX = 2; CY = 2                                        # coin position in pixels
